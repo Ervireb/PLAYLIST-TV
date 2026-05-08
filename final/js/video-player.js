@@ -15,7 +15,9 @@ class VideoPlayer {
         this.vimeoReady = true; // Vimeo API loads synchronously
         this.wasFullscreen = false; // Track fullscreen state
         this.youtubeAutoplayRetries = 0;
+        this.coubAutoplayRetries = 0;
         this.maxAutoplayRetries = 3;
+        this.defaultCoubTimer = 30; // Default 30 seconds for Coub videos
         
         // Initialize YouTube API
         this.initYouTubeAPI();
@@ -73,17 +75,106 @@ class VideoPlayer {
     }
 
     /**
+     * Get Coub timer setting from localStorage
+     * @returns {number} - Timer duration in seconds
+     */
+    getCoubTimer() {
+        try {
+            const stored = localStorage.getItem('coubTimer');
+            if (stored) {
+                const value = parseInt(stored, 10);
+                if (!isNaN(value) && value >= 1 && value <= 99999) {
+                    return value;
+                }
+            }
+        } catch (error) {
+            console.warn('Could not access localStorage:', error);
+        }
+        return this.defaultCoubTimer;
+    }
+
+    /**
+     * Set Coub timer setting in localStorage
+     * @param {number} seconds - Timer duration in seconds
+     * @returns {boolean} - Success status
+     */
+    setCoubTimer(seconds) {
+        try {
+            const value = parseInt(seconds, 10);
+            if (isNaN(value) || value < 1 || value > 99999) {
+                console.error('Invalid Coub timer value:', seconds);
+                return false;
+            }
+            localStorage.setItem('coubTimer', value.toString());
+            console.log('Coub timer updated to:', value, 'seconds');
+            return true;
+        } catch (error) {
+            console.error('Could not save to localStorage:', error);
+            return false;
+        }
+    }
+
+    /**
      * Enter fullscreen mode
      * @param {HTMLElement} element - Element to make fullscreen
+     * 
+     * FUTURE ENHANCEMENT CONSIDERATION:
+     * ===================================
+     * Current Implementation: Uses browser's native Fullscreen API
+     * - Works across all platforms (YouTube, Vimeo, Coub)
+     * - Requires cross-browser compatibility handling
+     * - May have inconsistent behavior across different browsers
+     * 
+     * Future Vimeo-Inspired Approach:
+     * - Vimeo Player API provides its own fullscreen methods:
+     *   * player.requestFullscreen() - Enter fullscreen mode
+     *   * player.exitFullscreen() - Exit fullscreen mode
+     *   * player.getFullscreen() - Check fullscreen state
+     * 
+     * Benefits of Platform-Specific Fullscreen APIs:
+     * 1. Better control over fullscreen behavior per platform
+     * 2. Fewer browser compatibility issues
+     * 3. More consistent user experience
+     * 4. Platform-specific optimizations
+     * 5. Better integration with platform features
+     * 
+     * Implementation Strategy for Future:
+     * - Check current platform (YouTube, Vimeo, Coub)
+     * - Use platform-specific fullscreen API if available:
+     *   * Vimeo: player.requestFullscreen()
+     *   * YouTube: Could use iframe.requestFullscreen() on the iframe element
+     *   * Coub: Fallback to browser Fullscreen API
+     * - Fallback to browser Fullscreen API if platform API unavailable
+     * 
+     * Note: YouTube IFrame API doesn't have dedicated fullscreen methods,
+     * but we could target the iframe element directly for better control.
+     * 
+     * Example Future Implementation:
+     * if (this.currentPlatform === 'vimeo' && this.currentPlayer.requestFullscreen) {
+     *     this.currentPlayer.requestFullscreen().catch(err => console.error(err));
+     * } else if (this.currentPlatform === 'youtube') {
+     *     // Target YouTube iframe directly
+     *     const iframe = this.container.querySelector('iframe');
+     *     if (iframe && iframe.requestFullscreen) {
+     *         iframe.requestFullscreen().catch(err => console.error(err));
+     *     }
+     * } else {
+     *     // Fallback to container fullscreen
+     *     this.container.requestFullscreen().catch(err => console.error(err));
+     * }
      */
     enterFullscreen(element) {
         if (!element) {
             element = this.container;
         }
 
+        console.log('Attempting to enter fullscreen mode...');
+
         try {
             if (element.requestFullscreen) {
-                element.requestFullscreen();
+                element.requestFullscreen().catch(err => {
+                    console.error('Fullscreen request failed:', err);
+                });
             } else if (element.webkitRequestFullscreen) {
                 element.webkitRequestFullscreen();
             } else if (element.webkitRequestFullScreen) {
@@ -92,6 +183,8 @@ class VideoPlayer {
                 element.mozRequestFullScreen();
             } else if (element.msRequestFullscreen) {
                 element.msRequestFullscreen();
+            } else {
+                console.warn('Fullscreen API not supported by this browser');
             }
         } catch (error) {
             console.error('Error entering fullscreen:', error);
@@ -177,6 +270,7 @@ class VideoPlayer {
 
         // Store fullscreen state before clearing player
         const shouldReenterFullscreen = this.wasFullscreen;
+        console.log('Loading video, fullscreen state:', shouldReenterFullscreen);
 
         // Clear current player
         this.clearPlayer();
@@ -200,10 +294,16 @@ class VideoPlayer {
             }
 
             // Re-enter fullscreen if it was active before
+            // Increased delay to ensure video iframe is fully loaded and ready
             if (shouldReenterFullscreen) {
+                console.log('Re-entering fullscreen mode after video load...');
                 setTimeout(() => {
-                    this.enterFullscreen();
-                }, 500); // Small delay to ensure video is loaded
+                    if (this.isFullscreen()) {
+                        console.log('Already in fullscreen, skipping re-entry');
+                    } else {
+                        this.enterFullscreen();
+                    }
+                }, 800); // Increased delay for better reliability across platforms
             }
 
             return true;
@@ -382,13 +482,17 @@ class VideoPlayer {
     async loadCoub(videoId) {
         return new Promise((resolve) => {
             try {
+                // Reset autoplay retry counter
+                this.coubAutoplayRetries = 0;
+
                 // Create iframe element for Coub
                 const iframe = document.createElement('iframe');
+                // Ensure autoplay parameter is set to true for fullscreen and normal modes
                 iframe.src = `https://coub.com/embed/${videoId}?muted=false&autoplay=true&originalSize=false&startWithHD=true`;
                 iframe.width = '100%';
                 iframe.height = '100%';
                 iframe.frameBorder = '0';
-                iframe.allow = 'autoplay';
+                iframe.allow = 'autoplay; fullscreen';
                 iframe.allowFullscreen = true;
 
                 this.container.innerHTML = '';
@@ -396,18 +500,26 @@ class VideoPlayer {
 
                 console.log('Coub video loaded');
                 
+                // Get configurable timer value from localStorage
+                const timerDuration = this.getCoubTimer();
+                console.log(`Coub timer set to ${timerDuration} seconds`);
+                
+                // Implement autoplay workaround with click simulation
+                // This helps trigger playback in fullscreen mode
+                this.checkCoubAutoplay(iframe);
+                
                 // Coub doesn't have a reliable end event API
                 // Set a timeout to trigger next video (Coub videos are typically short loops)
-                // This is a workaround - in production, you might want to handle this differently
+                // Use configurable timer value instead of hardcoded 30 seconds
                 this.currentPlayer = {
                     type: 'coub',
                     iframe: iframe,
                     timeout: setTimeout(() => {
-                        console.log('Coub video timeout (assumed ended)');
+                        console.log(`Coub video timeout after ${timerDuration} seconds (assumed ended)`);
                         if (this.onVideoEndCallback) {
                             this.onVideoEndCallback();
                         }
-                    }, 30000) // 30 seconds default
+                    }, timerDuration * 1000) // Convert seconds to milliseconds
                 };
 
                 resolve();
@@ -415,6 +527,48 @@ class VideoPlayer {
                 console.error('Error loading Coub:', error);
                 resolve(); // Resolve anyway to not block playlist
             }
+        });
+    }
+
+    /**
+     * Check if Coub video is autoplaying and retry if needed
+     * Implements click simulation to trigger playback in fullscreen mode
+     * @param {HTMLIFrameElement} iframe - Coub iframe element
+     */
+    checkCoubAutoplay(iframe) {
+        // Attempt to trigger autoplay with programmatic click simulation
+        // Multiple attempts with increasing delays to handle various loading scenarios
+        const clickAttempts = [500, 1500, 2500];
+        
+        clickAttempts.forEach((delay, index) => {
+            setTimeout(() => {
+                if (this.coubAutoplayRetries < this.maxAutoplayRetries) {
+                    try {
+                        console.log(`Coub autoplay attempt ${index + 1} at ${delay}ms`);
+                        
+                        // Try to simulate click on iframe to trigger playback
+                        // This is a workaround for autoplay restrictions
+                        const clickEvent = new MouseEvent('click', {
+                            view: window,
+                            bubbles: true,
+                            cancelable: true
+                        });
+                        iframe.dispatchEvent(clickEvent);
+                        
+                        // Try postMessage approach as well (cross-origin safe)
+                        try {
+                            iframe.contentWindow.postMessage('play', '*');
+                        } catch (crossOriginError) {
+                            // Expected for cross-origin iframes, silently handle
+                            console.log('Cross-origin postMessage blocked (expected)');
+                        }
+                        
+                        this.coubAutoplayRetries++;
+                    } catch (error) {
+                        console.warn('Coub autoplay trigger failed:', error.message);
+                    }
+                }
+            }, delay);
         });
     }
 

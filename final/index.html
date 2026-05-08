@@ -16,6 +16,14 @@
         <main>
             <!-- Video Player Section -->
             <section class="video-section">
+                <div class="video-header">
+                    <button id="settingsButton" class="settings-button" aria-label="Settings">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="3"></circle>
+                            <path d="M12 1v6m0 6v6m0-18a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2 2 2 0 0 1-2-2V3a2 2 0 0 1 2-2zm0 18a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-2a2 2 0 0 1 2-2zM1 12h6m6 0h6M1 12a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2 2 2 0 0 1-2 2H3a2 2 0 0 1-2-2zm18 0a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-2a2 2 0 0 1-2-2z"></path>
+                        </svg>
+                    </button>
+                </div>
                 <div class="video-container" id="videoContainer">
                     <div class="placeholder">
                         <svg
@@ -36,6 +44,89 @@ stroke-width="2"
                     <span class="video-title" id="videoTitle">No video playing</span>
                 </div>
             </section>
+
+            <!-- Settings Panel -->
+            <div id="settingsPanel" class="settings-panel" style="display: none;">
+                <div class="settings-content">
+                    <div class="settings-header">
+                        <h3>Player Settings</h3>
+                        <button id="closeSettings" class="close-settings" aria-label="Close settings">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="settings-body">
+                        <div class="setting-group">
+                            <label for="coubTimer" class="setting-label">
+                                Coub Video Duration (seconds)
+                                <span class="setting-description">Set how long Coub videos play before advancing to the next video</span>
+                            </label>
+                            <div class="setting-input-group">
+                                <input 
+                                    type="number" 
+                                    id="coubTimer" 
+                                    class="setting-input"
+                                    min="1" 
+                                    max="99999" 
+                                    value="30"
+                                    aria-label="Coub video duration in seconds"
+                                >
+                                <span class="input-suffix">seconds</span>
+                            </div>
+                            <div class="setting-info">
+                                <span class="current-value">Current: <strong id="currentTimerValue">30</strong> seconds</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="settings-footer">
+                        <button id="resetSettings" class="btn btn-secondary">Reset to Default</button>
+                        <button id="saveSettings" class="btn btn-primary">Save Settings</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Import Dialog -->
+            <div id="importDialog" class="import-dialog" style="display: none;">
+                <div class="import-content">
+                    <div class="import-header">
+                        <h3>Import Videos from File</h3>
+                        <button id="closeImport" class="close-import" aria-label="Close import dialog">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="import-body">
+                        <div class="import-summary">
+                            <div class="summary-item">
+                                <span class="summary-label">Total URLs found:</span>
+                                <span class="summary-value" id="totalUrls">0</span>
+                            </div>
+                            <div class="summary-item success">
+                                <span class="summary-label">Valid URLs:</span>
+                                <span class="summary-value" id="validUrls">0</span>
+                            </div>
+                            <div class="summary-item error" id="invalidUrlsItem" style="display: none;">
+                                <span class="summary-label">Invalid URLs:</span>
+                                <span class="summary-value" id="invalidUrls">0</span>
+                            </div>
+                            <div class="summary-item warning" id="duplicateUrlsItem" style="display: none;">
+                                <span class="summary-label">Duplicate URLs:</span>
+                                <span class="summary-value" id="duplicateUrls">0</span>
+                            </div>
+                        </div>
+                        <div class="import-message" id="importMessage"></div>
+                    </div>
+                    <div class="import-footer">
+                        <button id="cancelImport" class="btn btn-secondary">Cancel</button>
+                        <button id="addToQueue" class="btn btn-success">Add to Queue</button>
+                        <button id="replaceQueue" class="btn btn-warning">Replace Queue</button>
+                    </div>
+                </div>
+            </div>
 
             <!-- Controls Section -->
             <section class="controls-section">
@@ -70,6 +161,20 @@ y2="12"
                         </svg>
                         Add to Playlist
                     </button>
+                    <label for="fileInput" class="btn btn-secondary file-upload-btn">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
+                            <polyline points="13 2 13 9 20 9"></polyline>
+                        </svg>
+                        Import File
+                    </label>
+                    <input 
+                        type="file" 
+                        id="fileInput" 
+                        accept=".csv,.txt"
+                        style="display: none;"
+                        aria-label="Import video URLs from file"
+                    >
                 </div>
                 <div class="control-buttons">
                     <button

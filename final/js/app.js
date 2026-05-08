@@ -26,8 +26,31 @@ class App {
             clearButton: document.getElementById('clearButton'),
             playlistElement: document.getElementById('playlist'),
             playlistCount: document.getElementById('playlistCount'),
-            loopToggle: document.getElementById('loopToggle')
+            loopToggle: document.getElementById('loopToggle'),
+            settingsButton: document.getElementById('settingsButton'),
+            settingsPanel: document.getElementById('settingsPanel'),
+            closeSettings: document.getElementById('closeSettings'),
+            coubTimerInput: document.getElementById('coubTimer'),
+            currentTimerValue: document.getElementById('currentTimerValue'),
+            saveSettings: document.getElementById('saveSettings'),
+            resetSettings: document.getElementById('resetSettings'),
+            fileInput: document.getElementById('fileInput'),
+            importDialog: document.getElementById('importDialog'),
+            closeImport: document.getElementById('closeImport'),
+            totalUrls: document.getElementById('totalUrls'),
+            validUrls: document.getElementById('validUrls'),
+            invalidUrls: document.getElementById('invalidUrls'),
+            duplicateUrls: document.getElementById('duplicateUrls'),
+            invalidUrlsItem: document.getElementById('invalidUrlsItem'),
+            duplicateUrlsItem: document.getElementById('duplicateUrlsItem'),
+            importMessage: document.getElementById('importMessage'),
+            cancelImport: document.getElementById('cancelImport'),
+            addToQueue: document.getElementById('addToQueue'),
+            replaceQueue: document.getElementById('replaceQueue')
         };
+
+        // Store parsed import data
+        this.importData = null;
 
         // Initialize video player
         this.videoPlayer = new VideoPlayer(this.elements.videoContainer);
@@ -39,6 +62,9 @@ class App {
 
         // Bind event listeners
         this.bindEvents();
+
+        // Initialize settings
+        this.initSettings();
 
         // Initial UI update
         this.updateUI();
@@ -79,6 +105,94 @@ class App {
         if (this.elements.loopToggle) {
             this.elements.loopToggle.addEventListener('change', (e) => {
                 this.handleLoopToggle(e.target.checked);
+            });
+        }
+
+        // Settings button
+        if (this.elements.settingsButton) {
+            this.elements.settingsButton.addEventListener('click', () => {
+                this.showSettings();
+            });
+        }
+
+        // Close settings button
+        if (this.elements.closeSettings) {
+            this.elements.closeSettings.addEventListener('click', () => {
+                this.hideSettings();
+            });
+        }
+
+        // Close settings when clicking outside
+        if (this.elements.settingsPanel) {
+            this.elements.settingsPanel.addEventListener('click', (e) => {
+                if (e.target === this.elements.settingsPanel) {
+                    this.hideSettings();
+                }
+            });
+        }
+
+        // Save settings button
+        if (this.elements.saveSettings) {
+            this.elements.saveSettings.addEventListener('click', () => {
+                this.handleSaveSettings();
+            });
+        }
+
+        // Reset settings button
+        if (this.elements.resetSettings) {
+            this.elements.resetSettings.addEventListener('click', () => {
+                this.handleResetSettings();
+            });
+        }
+
+        // Coub timer input validation
+        if (this.elements.coubTimerInput) {
+            this.elements.coubTimerInput.addEventListener('input', (e) => {
+                this.validateCoubTimer(e.target.value);
+            });
+        }
+
+        // File input change
+        if (this.elements.fileInput) {
+            this.elements.fileInput.addEventListener('change', (e) => {
+                this.handleFileUpload(e);
+            });
+        }
+
+        // Close import dialog
+        if (this.elements.closeImport) {
+            this.elements.closeImport.addEventListener('click', () => {
+                this.hideImportDialog();
+            });
+        }
+
+        // Close import dialog when clicking outside
+        if (this.elements.importDialog) {
+            this.elements.importDialog.addEventListener('click', (e) => {
+                if (e.target === this.elements.importDialog) {
+                    this.hideImportDialog();
+                }
+            });
+        }
+
+        // Cancel import button
+        if (this.elements.cancelImport) {
+            this.elements.cancelImport.addEventListener('click', () => {
+                this.handleCancelImport();
+            });
+        }
+
+        // Add to queue button
+        if (this.elements.addToQueue) {
+            this.elements.addToQueue.addEventListener('click', () => {
+                this.handleAddToQueue();
+            });
+        }
+
+        // Replace queue button
+        if (this.elements.replaceQueue) {
+            this.elements.replaceQueue.addEventListener('click', () => {
+                this.handleReplaceQueue();
             });
         }
     }
@@ -376,6 +490,120 @@ class App {
     }
 
     /**
+     * Initialize settings from localStorage
+     */
+    initSettings() {
+        const currentTimer = this.videoPlayer.getCoubTimer();
+        if (this.elements.coubTimerInput) {
+            this.elements.coubTimerInput.value = currentTimer;
+        }
+        if (this.elements.currentTimerValue) {
+            this.elements.currentTimerValue.textContent = currentTimer;
+        }
+    }
+
+    /**
+     * Show settings panel
+     */
+    showSettings() {
+        if (this.elements.settingsPanel) {
+            // Update current values before showing
+            const currentTimer = this.videoPlayer.getCoubTimer();
+            if (this.elements.coubTimerInput) {
+                this.elements.coubTimerInput.value = currentTimer;
+            }
+            if (this.elements.currentTimerValue) {
+                this.elements.currentTimerValue.textContent = currentTimer;
+            }
+            
+            this.elements.settingsPanel.style.display = 'flex';
+            document.body.style.overflow = 'hidden'; // Prevent background scrolling
+        }
+    }
+
+    /**
+     * Hide settings panel
+     */
+    hideSettings() {
+        if (this.elements.settingsPanel) {
+            this.elements.settingsPanel.style.display = 'none';
+            document.body.style.overflow = ''; // Restore scrolling
+        }
+    }
+
+    /**
+     * Validate Coub timer input
+     * @param {string} value - Input value
+     */
+    validateCoubTimer(value) {
+        const numValue = parseInt(value, 10);
+        const input = this.elements.coubTimerInput;
+        
+        if (isNaN(numValue) || numValue < 1 || numValue > 99999) {
+            if (input) {
+                input.setCustomValidity('Please enter a value between 1 and 99999');
+            }
+        } else {
+            if (input) {
+                input.setCustomValidity('');
+            }
+        }
+    }
+
+    /**
+     * Handle save settings button click
+     */
+    handleSaveSettings() {
+        const timerValue = this.elements.coubTimerInput.value;
+        const numValue = parseInt(timerValue, 10);
+
+        // Validate input
+        if (isNaN(numValue) || numValue < 1 || numValue > 99999) {
+            this.showMessage('Please enter a valid timer value between 1 and 99999 seconds', 'error');
+            return;
+        }
+
+        // Save to localStorage via videoPlayer
+        const success = this.videoPlayer.setCoubTimer(numValue);
+
+        if (success) {
+            // Update display
+            if (this.elements.currentTimerValue) {
+                this.elements.currentTimerValue.textContent = numValue;
+            }
+            
+            this.showMessage(`Coub timer updated to ${numValue} seconds`, 'success');
+            this.hideSettings();
+        } else {
+            this.showMessage('Failed to save settings', 'error');
+        }
+    }
+
+    /**
+     * Handle reset settings button click
+     */
+    handleResetSettings() {
+        const defaultTimer = 30;
+        
+        // Reset to default
+        const success = this.videoPlayer.setCoubTimer(defaultTimer);
+
+        if (success) {
+            // Update inputs
+            if (this.elements.coubTimerInput) {
+                this.elements.coubTimerInput.value = defaultTimer;
+            }
+            if (this.elements.currentTimerValue) {
+                this.elements.currentTimerValue.textContent = defaultTimer;
+            }
+            
+            this.showMessage('Settings reset to default (30 seconds)', 'info');
+        } else {
+            this.showMessage('Failed to reset settings', 'error');
+        }
+    }
+
+    /**
      * Show a temporary message to the user
      * @param {string} message - Message text
      * @param {string} type - Message type (success, error, warning, info)
@@ -455,6 +683,373 @@ class App {
             info: '#3b82f6'
         };
         return colors[type] || colors.info;
+    }
+
+    /**
+     * Handle file upload
+     * @param {Event} event - File input change event
+     */
+    async handleFileUpload(event) {
+        const file = event.target.files[0];
+        
+        if (!file) {
+            return;
+        }
+
+        // Validate file type
+        const fileName = file.name.toLowerCase();
+        if (!fileName.endsWith('.csv') && !fileName.endsWith('.txt')) {
+            this.showMessage('Please select a CSV or TXT file', 'error');
+            this.elements.fileInput.value = ''; // Reset input
+            return;
+        }
+
+        // Show loading message
+        this.showMessage('Processing file...', 'info');
+
+        try {
+            // Read file content
+            const content = await this.readFileContent(file);
+            
+            // Extract URLs from file
+            const extractedData = await this.extractURLsFromFile(content, fileName);
+            
+            // Validate imported URLs
+            const validationResult = this.validateImportedURLs(extractedData.urls);
+            
+            // Check if there are any valid URLs
+            if (validationResult.valid.length === 0) {
+                this.showMessage('No valid video URLs found in file', 'warning');
+                this.elements.fileInput.value = ''; // Reset input
+                return;
+            }
+
+            // Store import data
+            this.importData = {
+                totalUrls: extractedData.urls.length,
+                validUrls: validationResult.valid,
+                invalidUrls: validationResult.invalid,
+                duplicateUrls: validationResult.duplicates
+            };
+
+            // Show import dialog
+            this.showImportDialog();
+
+        } catch (error) {
+            console.error('Error processing file:', error);
+            this.showMessage('Failed to read file. Please try again.', 'error');
+        } finally {
+            // Reset file input to allow re-uploading the same file
+            this.elements.fileInput.value = '';
+        }
+    }
+
+    /**
+     * Read file content as text
+     * @param {File} file - File object
+     * @returns {Promise<string>} - File content
+     */
+    readFileContent(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            
+            reader.onload = (e) => {
+                resolve(e.target.result);
+            };
+            
+            reader.onerror = () => {
+                reject(new Error('Failed to read file'));
+            };
+            
+            reader.readAsText(file);
+        });
+    }
+
+    /**
+     * Extract URLs from file content
+     * @param {string} content - File content
+     * @param {string} fileName - File name
+     * @returns {Promise<Object>} - Extracted URLs and metadata
+     */
+    async extractURLsFromFile(content, fileName) {
+        const isCSV = fileName.endsWith('.csv');
+        const urls = [];
+
+        if (isCSV) {
+            // Parse CSV file
+            urls.push(...this.parseCSVFile(content));
+        } else {
+            // Parse TXT file
+            urls.push(...this.parseTXTFile(content));
+        }
+
+        return {
+            urls: urls,
+            fileType: isCSV ? 'CSV' : 'TXT'
+        };
+    }
+
+    /**
+     * Parse CSV file content
+     * @param {string} content - CSV file content
+     * @returns {Array<string>} - Array of URLs
+     */
+    parseCSVFile(content) {
+        const urls = [];
+        const lines = content.split(/\r?\n/);
+
+        for (const line of lines) {
+            // Skip empty lines and comment lines
+            const trimmedLine = line.trim();
+            if (!trimmedLine || trimmedLine.startsWith('#')) {
+                continue;
+            }
+
+            // Try both comma and semicolon as delimiters
+            const delimiters = [',', ';'];
+            let foundUrl = false;
+
+            for (const delimiter of delimiters) {
+                if (line.includes(delimiter)) {
+                    const fields = line.split(delimiter);
+                    
+                    // Check each field for a valid URL
+                    for (const field of fields) {
+                        const trimmedField = field.trim();
+                        // Check if field looks like a URL
+                        if (trimmedField && (
+                            trimmedField.includes('youtube.com') ||
+                            trimmedField.includes('youtu.be') ||
+                            trimmedField.includes('vimeo.com') ||
+                            trimmedField.includes('coub.com')
+                        )) {
+                            urls.push(trimmedField);
+                            foundUrl = true;
+                            break; // Take first URL found in the line
+                        }
+                    }
+                    
+                    if (foundUrl) {
+                        break;
+                    }
+                }
+            }
+
+            // If no delimiter found, treat entire line as potential URL
+            if (!foundUrl && (
+                trimmedLine.includes('youtube.com') ||
+                trimmedLine.includes('youtu.be') ||
+                trimmedLine.includes('vimeo.com') ||
+                trimmedLine.includes('coub.com')
+            )) {
+                urls.push(trimmedLine);
+            }
+        }
+
+        return urls;
+    }
+
+    /**
+     * Parse TXT file content
+     * @param {string} content - TXT file content
+     * @returns {Array<string>} - Array of URLs
+     */
+    parseTXTFile(content) {
+        const urls = [];
+        const lines = content.split(/\r?\n/);
+
+        for (const line of lines) {
+            // Skip empty lines and comment lines
+            const trimmedLine = line.trim();
+            if (!trimmedLine || trimmedLine.startsWith('#')) {
+                continue;
+            }
+
+            // Check if line looks like a URL
+            if (trimmedLine.includes('youtube.com') ||
+                trimmedLine.includes('youtu.be') ||
+                trimmedLine.includes('vimeo.com') ||
+                trimmedLine.includes('coub.com')) {
+                urls.push(trimmedLine);
+            }
+        }
+
+        return urls;
+    }
+
+    /**
+     * Validate imported URLs
+     * @param {Array<string>} urls - Array of URLs to validate
+     * @returns {Object} - Validation result with valid, invalid, and duplicate URLs
+     */
+    validateImportedURLs(urls) {
+        const valid = [];
+        const invalid = [];
+        const duplicates = [];
+        const seenUrls = new Set();
+        const existingUrls = new Set(this.playlist.getAll().map(v => v.url));
+
+        for (const url of urls) {
+            const trimmedUrl = url.trim();
+            
+            // Check for duplicates in the import file
+            if (seenUrls.has(trimmedUrl)) {
+                continue; // Skip duplicate within file
+            }
+            seenUrls.add(trimmedUrl);
+
+            // Parse URL using video player
+            const videoInfo = this.videoPlayer.parseUrl(trimmedUrl);
+
+            if (videoInfo) {
+                // Check if URL already exists in playlist
+                if (existingUrls.has(trimmedUrl)) {
+                    duplicates.push(trimmedUrl);
+                } else {
+                    valid.push(videoInfo);
+                }
+            } else {
+                invalid.push(trimmedUrl);
+            }
+        }
+
+        return {
+            valid: valid,
+            invalid: invalid,
+            duplicates: duplicates
+        };
+    }
+
+    /**
+     * Show import dialog with summary
+     */
+    showImportDialog() {
+        if (!this.importData) {
+            return;
+        }
+
+        const { totalUrls, validUrls, invalidUrls, duplicateUrls } = this.importData;
+
+        // Update summary values
+        this.elements.totalUrls.textContent = totalUrls;
+        this.elements.validUrls.textContent = validUrls.length;
+        this.elements.invalidUrls.textContent = invalidUrls.length;
+        this.elements.duplicateUrls.textContent = duplicateUrls.length;
+
+        // Show/hide invalid URLs item
+        if (invalidUrls.length > 0) {
+            this.elements.invalidUrlsItem.style.display = 'flex';
+        } else {
+            this.elements.invalidUrlsItem.style.display = 'none';
+        }
+
+        // Show/hide duplicate URLs item
+        if (duplicateUrls.length > 0) {
+            this.elements.duplicateUrlsItem.style.display = 'flex';
+        } else {
+            this.elements.duplicateUrlsItem.style.display = 'none';
+        }
+
+        // Update message
+        let message = `Ready to import ${validUrls.length} valid video${validUrls.length !== 1 ? 's' : ''}.`;
+        if (invalidUrls.length > 0) {
+            message += ` ${invalidUrls.length} invalid URL${invalidUrls.length !== 1 ? 's' : ''} will be skipped.`;
+        }
+        if (duplicateUrls.length > 0) {
+            message += ` ${duplicateUrls.length} duplicate${duplicateUrls.length !== 1 ? 's' : ''} already in playlist.`;
+        }
+        this.elements.importMessage.textContent = message;
+
+        // Show dialog
+        this.elements.importDialog.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+    }
+
+    /**
+     * Hide import dialog
+     */
+    hideImportDialog() {
+        if (this.elements.importDialog) {
+            this.elements.importDialog.style.display = 'none';
+            document.body.style.overflow = '';
+        }
+        this.importData = null;
+    }
+
+    /**
+     * Handle cancel import action
+     */
+    handleCancelImport() {
+        this.hideImportDialog();
+        this.showMessage('Import cancelled', 'info');
+    }
+
+    /**
+     * Handle add to queue action
+     */
+    handleAddToQueue() {
+        if (!this.importData || !this.importData.validUrls) {
+            return;
+        }
+
+        const validUrls = this.importData.validUrls;
+        let addedCount = 0;
+
+        // Add each valid URL to playlist
+        for (const videoInfo of validUrls) {
+            const success = this.playlist.add(videoInfo);
+            if (success) {
+                addedCount++;
+            }
+        }
+
+        // Update UI
+        this.updateUI();
+        
+        // Hide dialog
+        this.hideImportDialog();
+
+        // Show success message
+        if (addedCount > 0) {
+            this.showMessage(`Added ${addedCount} video${addedCount !== 1 ? 's' : ''} to playlist`, 'success');
+        } else {
+            this.showMessage('No new videos were added', 'warning');
+        }
+    }
+
+    /**
+     * Handle replace queue action
+     */
+    handleReplaceQueue() {
+        if (!this.importData || !this.importData.validUrls) {
+            return;
+        }
+
+        const validUrls = this.importData.validUrls;
+
+        // Clear current playlist
+        this.playlist.clear();
+        this.videoPlayer.showPlaceholder();
+        this.isPlaying = false;
+        this.updateVideoInfo(null);
+
+        // Add new videos
+        let addedCount = 0;
+        for (const videoInfo of validUrls) {
+            const success = this.playlist.add(videoInfo);
+            if (success) {
+                addedCount++;
+            }
+        }
+
+        // Update UI
+        this.updateUI();
+        
+        // Hide dialog
+        this.hideImportDialog();
+
+        // Show success message
+        this.showMessage(`Playlist replaced with ${addedCount} video${addedCount !== 1 ? 's' : ''}`, 'success');
     }
 }
 
