@@ -25,7 +25,8 @@ class App {
             skipButton: document.getElementById('skipButton'),
             clearButton: document.getElementById('clearButton'),
             playlistElement: document.getElementById('playlist'),
-            playlistCount: document.getElementById('playlistCount')
+            playlistCount: document.getElementById('playlistCount'),
+            loopToggle: document.getElementById('loopToggle')
         };
 
         // Initialize video player
@@ -73,6 +74,13 @@ class App {
         this.elements.clearButton.addEventListener('click', () => {
             this.handleClear();
         });
+
+        // Loop toggle
+        if (this.elements.loopToggle) {
+            this.elements.loopToggle.addEventListener('change', (e) => {
+                this.handleLoopToggle(e.target.checked);
+            });
+        }
     }
 
     /**
@@ -168,19 +176,68 @@ class App {
     }
 
     /**
+     * Handle loop toggle change
+     * @param {boolean} enabled - Loop mode enabled status
+     */
+    handleLoopToggle(enabled) {
+        this.playlist.setLoopMode(enabled);
+        const message = enabled ? 'Loop mode enabled' : 'Loop mode disabled';
+        this.showMessage(message, 'info');
+        console.log('Loop mode:', enabled);
+    }
+
+    /**
+     * Handle click on playlist item to start playing from that video
+     * @param {number} index - Index of clicked video
+     */
+    async handlePlaylistItemClick(index) {
+        if (index < 0 || index >= this.playlist.getCount()) {
+            return;
+        }
+
+        // Set the current index to one before the clicked item
+        // so getNext() will return the clicked item
+        this.playlist.setCurrentIndex(index - 1);
+
+        // Start playing from the clicked video
+        this.isPlaying = true;
+        const video = this.playlist.getNext();
+
+        if (video) {
+            const success = await this.videoPlayer.loadVideo(video);
+            if (success) {
+                this.updateVideoInfo(video);
+                this.updateUI();
+                this.showMessage('Playing from selected video', 'success');
+            } else {
+                this.showMessage('Failed to load video', 'error');
+                this.isPlaying = false;
+                this.playNext(); // Try next video
+            }
+        }
+    }
+
+    /**
      * Play the next video in the playlist
      */
     async playNext() {
+        const previousIndex = this.playlist.getCurrentIndex();
         const video = this.playlist.getNext();
 
         if (!video) {
-            // Playlist finished
+            // Playlist finished (loop mode is disabled)
             this.isPlaying = false;
             this.videoPlayer.showPlaceholder();
             this.updateVideoInfo(null);
             this.updateUI();
             this.showMessage('Playlist finished', 'info');
             return;
+        }
+
+        // Check if playlist restarted (loop mode)
+        const currentIndex = this.playlist.getCurrentIndex();
+        if (this.playlist.getLoopMode() && previousIndex > currentIndex && currentIndex === 0) {
+            this.showMessage('Playlist restarting from beginning', 'info');
         }
 
         // Load and play next video
@@ -255,6 +312,19 @@ class App {
                 </div>
             `;
         }).join('');
+
+        // Add event listeners to playlist items for click-to-play
+        const playlistItems = this.elements.playlistElement.querySelectorAll('.playlist-item');
+        playlistItems.forEach(item => {
+            item.addEventListener('click', (e) => {
+                // Don't trigger if clicking the remove button
+                if (e.target.closest('.playlist-item-remove')) {
+                    return;
+                }
+                const index = parseInt(item.getAttribute('data-index'));
+                this.handlePlaylistItemClick(index);
+            });
+        });
 
         // Add event listeners to remove buttons
         const removeButtons = this.elements.playlistElement.querySelectorAll('.playlist-item-remove');

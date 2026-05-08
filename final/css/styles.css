@@ -219,6 +219,50 @@ header .subtitle {
     height: 20px;
 }
 
+/* Loop Control */
+.loop-control {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border-color);
+}
+
+.loop-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    user-select: none;
+    padding: 8px 12px;
+    border-radius: 8px;
+    transition: background-color 0.2s;
+}
+
+.loop-label:hover {
+    background-color: var(--bg-color);
+}
+
+.loop-checkbox {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    accent-color: var(--primary-color);
+}
+
+.loop-text {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 1rem;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.loop-icon {
+    width: 18px;
+    height: 18px;
+    color: var(--primary-color);
+}
+
 .btn-primary {
     background: var(--primary-color);
     color: white;
@@ -299,15 +343,28 @@ header .subtitle {
     border: 2px solid var(--border-color);
     border-radius: 12px;
     transition: all 0.2s;
+    cursor: pointer;
 }
 
 .playlist-item:hover {
     border-color: var(--primary-color);
     box-shadow: var(--shadow);
+    transform: translateX(4px);
+    background: rgba(59, 130, 246, 0.05);
+}
+
+.playlist-item:active {
+    transform: translateX(2px);
 }
 
 .playlist-item.playing {
     border-color: var(--success-color);
+    background: rgba(16, 185, 129, 0.05);
+    cursor: default;
+}
+
+.playlist-item.playing:hover {
+    transform: none;
     background: rgba(16, 185, 129, 0.05);
 }
 

@@ -7,6 +7,10 @@ A web application that allows users to create and manage playlists of videos fro
 - **Multi-Platform Support**: Play videos from YouTube, Vimeo, and Coub
 - **Playlist Management**: Add, remove, and clear videos from your playlist
 - **Automatic Playback**: Videos play sequentially with automatic transitions
+- **Loop Mode**: Enable continuous playlist looping to restart from the beginning automatically
+- **Click-to-Play**: Click any video in the playlist to start playing from that position
+- **Fullscreen Persistence**: Fullscreen mode is maintained across video transitions
+- **YouTube Autoplay Workaround**: Automatic detection and retry mechanism for YouTube autoplay issues
 - **Responsive Design**: Works seamlessly on desktop and mobile devices
 - **Modern UI**: Clean, intuitive interface with visual feedback
 - **Browser Autoplay Handling**: Intelligent handling of browser autoplay policies
@@ -41,12 +45,28 @@ A web application that allows users to create and manage playlists of videos fro
 2. Videos will play automatically in sequence
 3. Use the "Skip" button to move to the next video
 4. The current video is highlighted in the playlist
+5. **Click any video** in the playlist to start playing from that position
+
+### Loop Mode
+
+1. Check the "Loop Playlist" checkbox to enable continuous loop mode
+2. When enabled, the playlist will automatically restart from the first video after the last video finishes
+3. Uncheck the box to disable loop mode and stop after the last video
+4. Loop mode setting persists during your session
+
+### Fullscreen Mode
+
+1. Use your browser's fullscreen controls or the video player's fullscreen button
+2. When transitioning to the next video, fullscreen mode is automatically maintained
+3. This works across all supported platforms (YouTube, Vimeo, Coub)
+4. Exit fullscreen anytime using the ESC key or browser controls
 
 ### Managing Playlist
 
 - **Remove Individual Videos**: Click the X button on any playlist item
 - **Clear Entire Playlist**: Click the "Clear Playlist" button (requires confirmation)
 - **View Playlist**: All queued videos are displayed with their platform and URL
+- **Reorder Playback**: Click any video to start playing from that position
 
 ## Browser Compatibility
 
@@ -76,14 +96,36 @@ If videos don't autoplay:
 The application is built with vanilla JavaScript using a modular architecture:
 
 - **playlist.js**: Manages playlist state and operations
+  - Loop mode management
+  - Click-to-play index control
+  - Automatic playlist restart logic
+  
 - **video-player.js**: Handles video playback and platform integration
+  - Fullscreen state detection and management
+  - Cross-browser fullscreen API support
+  - YouTube autoplay detection and retry mechanism
+  - Fullscreen persistence across video transitions
+  
 - **app.js**: Main application controller and UI management
+  - Loop mode toggle UI control
+  - Click-to-play event handling
+  - Fullscreen state coordination
 
 ### APIs Used
 
 - **YouTube IFrame API**: For YouTube video playback and event handling
+  - Player state monitoring for autoplay detection
+  - Programmatic play() method for autoplay workaround
+  - Maximum 3 retry attempts for failed autoplay
+  
 - **Vimeo Player API**: For Vimeo video playback and event handling
+
 - **Coub Embed**: For Coub video playback (basic iframe embedding)
+
+- **Fullscreen API**: Cross-browser fullscreen support
+  - Standard `requestFullscreen()` method
+  - Legacy prefixed methods (webkit, moz, ms)
+  - Fullscreen state detection across browsers
 
 ### File Structure
 
@@ -150,11 +192,22 @@ Then navigate to `http://localhost:8000` in your browser.
 - Click anywhere on the page before starting playback
 - Check browser autoplay settings
 - Try manually clicking the Play button
+- The app automatically retries YouTube autoplay up to 3 times
 
 ### Video Not Loading
 - Ensure the video is not private or restricted
 - Check if the video is available in your region
 - Verify the URL format is correct
+
+### Fullscreen Not Persisting
+- Ensure your browser supports the Fullscreen API
+- Some browsers may require user interaction before allowing fullscreen
+- Check browser permissions for fullscreen access
+
+### Loop Mode Not Working
+- Verify the "Loop Playlist" checkbox is checked
+- Ensure there are multiple videos in the playlist
+- Check the browser console for any error messages
 
 ## Future Enhancements
 
@@ -163,10 +216,11 @@ Potential features for future versions:
 - Drag-and-drop playlist reordering
 - Volume controls
 - Playback speed controls
-- Loop playlist option
 - Shuffle mode
 - Video thumbnails in playlist
 - Support for additional platforms
+- Picture-in-picture mode
+- Keyboard shortcuts
 
 ## License
 

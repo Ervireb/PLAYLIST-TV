@@ -7,6 +7,7 @@ class Playlist {
     constructor() {
         this.videos = [];
         this.currentIndex = -1;
+        this.loopMode = false;
     }
 
     /**
@@ -83,10 +84,16 @@ class Playlist {
             // Move to next video
             this.currentIndex++;
             
-            // If we've reached the end, return null (playlist finished)
+            // If we've reached the end
             if (this.currentIndex >= this.videos.length) {
-                this.currentIndex = this.videos.length - 1;
-                return null;
+                // If loop mode is enabled, restart from beginning
+                if (this.loopMode) {
+                    this.currentIndex = 0;
+                } else {
+                    // Otherwise, return null (playlist finished)
+                    this.currentIndex = this.videos.length - 1;
+                    return null;
+                }
             }
         }
 
@@ -149,6 +156,48 @@ class Playlist {
      */
     reset() {
         this.currentIndex = -1;
+    }
+
+    /**
+     * Set loop mode
+     * @param {boolean} enabled - Enable or disable loop mode
+     */
+    setLoopMode(enabled) {
+        this.loopMode = enabled;
+    }
+
+    /**
+     * Get loop mode status
+     * @returns {boolean} - Current loop mode status
+     */
+    getLoopMode() {
+        return this.loopMode;
+    }
+
+    /**
+     * Set current index (for click-to-play functionality)
+     * @param {number} index - Index to set as current
+     * @returns {boolean} - Success status
+     */
+    setCurrentIndex(index) {
+        if (index < -1 || index >= this.videos.length) {
+            console.error('Invalid index');
+            return false;
+        }
+        this.currentIndex = index;
+        return true;
+    }
+
+    /**
+     * Get video at specific index
+     * @param {number} index - Index of video to get
+     * @returns {Object|null} - Video object or null
+     */
+    getVideoAt(index) {
+        if (index < 0 || index >= this.videos.length) {
+            return null;
+        }
+        return this.videos[index];
     }
 }
 

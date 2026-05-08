@@ -13,9 +13,15 @@ class VideoPlayer {
         this.onVideoEndCallback = null;
         this.youtubeReady = false;
         this.vimeoReady = true; // Vimeo API loads synchronously
+        this.wasFullscreen = false; // Track fullscreen state
+        this.youtubeAutoplayRetries = 0;
+        this.maxAutoplayRetries = 3;
         
         // Initialize YouTube API
         this.initYouTubeAPI();
+        
+        // Listen for fullscreen changes
+        this.initFullscreenListeners();
     }
 
     /**
@@ -33,6 +39,63 @@ class VideoPlayer {
             this.youtubeReady = true;
             console.log('YouTube IFrame API ready');
         };
+    }
+
+    /**
+     * Initialize fullscreen event listeners
+     */
+    initFullscreenListeners() {
+        const fullscreenEvents = [
+            'fullscreenchange',
+            'webkitfullscreenchange',
+            'mozfullscreenchange',
+            'MSFullscreenChange'
+        ];
+
+        fullscreenEvents.forEach(event => {
+            document.addEventListener(event, () => {
+                this.wasFullscreen = this.isFullscreen();
+            });
+        });
+    }
+
+    /**
+     * Check if currently in fullscreen mode
+     * @returns {boolean} - True if in fullscreen
+     */
+    isFullscreen() {
+        return !!(
+            document.fullscreenElement ||
+            document.webkitFullscreenElement ||
+            document.mozFullScreenElement ||
+            document.msFullscreenElement
+        );
+    }
+
+    /**
+     * Enter fullscreen mode
+     * @param {HTMLElement} element - Element to make fullscreen
+     */
+    enterFullscreen(element) {
+        if (!element) {
+            element = this.container;
+        }
+
+        try {
+            if (element.requestFullscreen) {
+                element.requestFullscreen();
+            } else if (element.webkitRequestFullscreen) {
+                element.webkitRequestFullscreen();
+            } else if (element.webkitRequestFullScreen) {
+                element.webkitRequestFullScreen();
+            } else if (element.mozRequestFullScreen) {
+                element.mozRequestFullScreen();
+            } else if (element.msRequestFullscreen) {
+                element.msRequestFullscreen();
+            }
+        } catch (error) {
+            console.error('Error entering fullscreen:', error);
+        }
     }
 
     /**
@@ -112,6 +175,9 @@ class VideoPlayer {
             return false;
         }
 
+        // Store fullscreen state before clearing player
+        const shouldReenterFullscreen = this.wasFullscreen;
+
         // Clear current player
         this.clearPlayer();
 
@@ -132,6 +198,14 @@ class VideoPlayer {
                     console.error('Unsupported platform:', video.platform);
                     return false;
             }
+
+            // Re-enter fullscreen if it was active before
+            if (shouldReenterFullscreen) {
+                setTimeout(() => {
+                    this.enterFullscreen();
+                }, 500); // Small delay to ensure video is loaded
+            }
+
             return true;
         } catch (error) {
             console.error('Error loading video:', error);
@@ -148,6 +222,9 @@ class VideoPlayer {
         if (!this.youtubeReady) {
             await this.waitForYouTubeAPI();
         }
+
+        // Reset autoplay retry counter
+        this.youtubeAutoplayRetries = 0;
 
         return new Promise((resolve, reject) => {
             try {
@@ -179,6 +256,10 @@ class VideoPlayer {
                                     console.log('Could not unmute (autoplay policy):', error.message);
                                 }
                             }, 1000);
+
+                            // Implement autoplay detection and retry mechanism
+                            this.checkYouTubeAutoplay(event.target);
+
                             resolve();
                         },
                         onStateChange: (event) => {
@@ -188,6 +269,11 @@ class VideoPlayer {
                                 if (this.onVideoEndCallback) {
                                     this.onVideoEndCallback();
                                 }
+                            }
+                            // YT.PlayerState.PLAYING = 1
+                            if (event.data === YT.PlayerState.PLAYING) {
+                                console.log('YouTube video is playing');
+                                this.youtubeAutoplayRetries = 0; // Reset retries on successful play
                             }
                         },
                         onError: (event) => {
@@ -200,6 +286,37 @@ class VideoPlayer {
                 reject(error);
             }
         });
+    }
+
+    /**
+     * Check if YouTube video is autoplaying and retry if needed
+     * @param {Object} player - YouTube player instance
+     */
+    checkYouTubeAutoplay(player) {
+        // Wait 2.5 seconds then check if video is playing
+        setTimeout(() => {
+            try {
+                const state = player.getPlayerState();
+                // YT.PlayerState.PLAYING = 1, YT.PlayerState.BUFFERING = 3
+                if (state !== YT.PlayerState.PLAYING && state !== YT.PlayerState.BUFFERING) {
+                    console.log('YouTube autoplay failed, attempting to play manually...');
+                    
+                    if (this.youtubeAutoplayRetries < this.maxAutoplayRetries) {
+                        this.youtubeAutoplayRetries++;
+                        player.playVideo();
+                        
+                        // Check again after retry
+                        if (this.youtubeAutoplayRetries < this.maxAutoplayRetries) {
+                            this.checkYouTubeAutoplay(player);
+                        }
+                    } else {
+                        console.error('YouTube autoplay failed after maximum retries');
+                    }
+                }
+            } catch (error) {
+                console.error('Error checking YouTube autoplay:', error);
+            }
+        }, 2500);
     }
 
     /**
