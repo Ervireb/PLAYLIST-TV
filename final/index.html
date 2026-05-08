@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-Platform Video Playlist Player</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Video Playlist Player</h1>
+            <p class="subtitle">Play videos from YouTube, Vimeo, and Coub in sequence</p>
+        </header>
+
+        <main>
+            <!-- Video Player Section -->
+            <section class="video-section">
+                <div class="video-container" id="videoContainer">
+                    <div class="placeholder">
+                        <svg
+width="80"
+height="80"
+viewBox="0 0 24 24"
+fill="none"
+stroke="currentColor"
+stroke-width="2"
+>
+                            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                        </svg>
+                        <p>Add videos to your playlist to start playing</p>
+                    </div>
+                </div>
+                <div class="video-info" id="videoInfo">
+                    <span class="platform-badge" id="platformBadge"></span>
+                    <span class="video-title" id="videoTitle">No video playing</span>
+                </div>
+            </section>
+
+            <!-- Controls Section -->
+            <section class="controls-section">
+                <div class="input-group">
+                    <input 
+                        type="text" 
+                        id="videoUrlInput" 
+                        placeholder="Enter YouTube, Vimeo, or Coub video URL..."
+                        aria-label="Video URL input"
+                    >
+                    <button id="addButton" class="btn btn-primary">
+                        <svg
+width="20"
+height="20"
+viewBox="0 0 24 24"
+fill="none"
+stroke="currentColor"
+stroke-width="2"
+>
+                            <line
+x1="12"
+y1="5"
+x2="12"
+y2="19"
+></line>
+                            <line
+x1="5"
+y1="12"
+x2="19"
+y2="12"
+></line>
+                        </svg>
+                        Add to Playlist
+                    </button>
+                </div>
+                <div class="control-buttons">
+                    <button
+id="playButton"
+class="btn btn-success"
+disabled
+>
+                        <svg
+width="20"
+height="20"
+viewBox="0 0 24 24"
+fill="none"
+stroke="currentColor"
+stroke-width="2"
+>
+                            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                        </svg>
+                        Play
+                    </button>
+                    <button
+id="skipButton"
+class="btn btn-secondary"
+disabled
+>
+                        <svg
+width="20"
+height="20"
+viewBox="0 0 24 24"
+fill="none"
+stroke="currentColor"
+stroke-width="2"
+>
+                            <polygon points="5 4 15 12 5 20 5 4"></polygon>
+                            <line
+x1="19"
+y1="5"
+x2="19"
+y2="19"
+></line>
+                        </svg>
+                        Skip
+                    </button>
+                    <button
+id="clearButton"
+class="btn btn-danger"
+disabled
+>
+                        <svg
+width="20"
+height="20"
+viewBox="0 0 24 24"
+fill="none"
+stroke="currentColor"
+stroke-width="2"
+>
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                        </svg>
+                        Clear Playlist
+                    </button>
+                </div>
+            </section>
+
+            <!-- Playlist Section -->
+            <section class="playlist-section">
+                <h2>Playlist <span class="playlist-count" id="playlistCount">(0)</span></h2>
+                <div class="playlist" id="playlist">
+                    <div class="empty-playlist">
+                        <p>Your playlist is empty. Add some videos to get started!</p>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>Supported platforms: YouTube, Vimeo, Coub</p>
+            <p class="note">Note: Some browsers may require user interaction before autoplay works</p>
+        </footer>
+    </div>
+
+    <!-- Load YouTube IFrame API -->
+    <script src="https://www.youtube.com/iframe_api"></script>
+    <!-- Load Vimeo Player API -->
+    <script src="https://player.vimeo.com/api/player.js"></script>
+    
+    <!-- Load application scripts -->
+    <script type="module" src="js/app.js"></script>
+</body>
+</html>
