@@ -1,227 +1,113 @@
 # Multi-Platform Video Playlist Player
 
-A web-based video playlist player that supports YouTube, YouTube Shorts, Vimeo, and Coub videos with a lightbox-based player interface.
+A modern, lightweight web application for creating and playing video playlists from YouTube, Vimeo, and Coub. Features a lightbox video player, shuffle mode, theme switching, and responsive design.
 
 ## Features
 
-### Core Features
-- **Multi-platform support**: YouTube, YouTube Shorts, Vimeo, and Coub
-- **Lightbox video player**: Videos play in an overlay lightbox for focused viewing
-- **Click-to-play**: Click any playlist item to start playing from that video
-- **File import**: Import video URLs from CSV or TXT files
-- **YouTube Playlist Import**: Import entire YouTube playlists via RSS feed
-- **Theme system**: Light and dark theme with toggle
-- **Loop mode**: Automatically restart playlist when finished (enabled by default)
-- **Shuffle mode**: Randomize playback order
-- **Coub timer**: Configurable duration for Coub video playback
-- **Responsive design**: Works on desktop and mobile devices
+### Core Playback
+- **Lightbox Video Player**: Videos play in a full-screen overlay with dark semi-transparent background
+- **Auto-advance**: Automatically transitions to the next video when the current one ends (500ms delay for smooth operation)
+- **Click-to-play**: Click any playlist item to jump to that video in the lightbox
+- **Video Container Play Button**: Animated play button that opens the lightbox when clicked
+- **Resume Playback**: Close the lightbox to pause; click the video container to resume from where you left off
 
-### Recent Enhancements
+### Playlist Management
+- **Add Videos**: Paste YouTube, Vimeo, or Coub URLs to add to the playlist
+- **File Import**: Import playlists from CSV or TXT files (supports comma and semicolon delimiters)
+- **Remove Videos**: Click the X button on any playlist item to remove it
+- **Clear Playlist**: Clear all videos with the Clear button next to the playlist header
+- **Duplicate Detection**: Prevents adding the same URL twice
 
-#### 1. File Import - Allow Duplicates
-- All valid video URLs from imported files are processed, even if duplicates exist in the playlist
-- Duplicate count is shown as informational in the import dialog
-- Format: "Valid URLs: X | Duplicates in current playlist: Y"
-- Both "Add to Queue" and "Replace Queue" add ALL valid URLs
+### Playback Modes
+- **Loop Mode**: Toggle to restart the playlist from the beginning after the last video
+- **Shuffle Mode**: Toggle to play videos in a randomized order (Fisher-Yates algorithm)
+  - Shuffled order persists until toggled off or playlist is modified
+  - Display order in the playlist UI remains unchanged
+  - Currently playing video is highlighted regardless of shuffle state
 
-#### 2. Replace Queue - Clear and Add All
-- "Replace Queue" clears the entire playlist and adds all valid URLs
-- No duplicate filtering since playlist is cleared first
-- Shuffle indices are regenerated after replacement
+### Theme System
+- **Light Theme** (default): Clean, bright interface with soft blue/purple accents
+- **Dark Theme**: Deep gray/navy interface with muted accent colors and subtle glow effects
+- **Persistent**: Theme preference saved to localStorage
+- **System Detection**: Automatically detects system dark mode preference on first visit
+- **Toggle**: Click the moon/sun icon in the header to switch themes
 
-#### 3. Loop Mode Active by Default
-- Loop mode is enabled by default when the application loads
-- User preference is saved to localStorage
-- If localStorage has a saved preference, that is used instead
+### Settings
+- **Coub Timer**: Configure how long Coub videos play before advancing (default: 30 seconds)
+- **Persistent Settings**: All settings saved to localStorage
 
-#### 4. Resized Play Button Animation
-- The play button circle pulse animation is 33% larger
-- Provides a more prominent visual indicator
+### Design
+- **Responsive**: Mobile-first design that works on all screen sizes
+- **Modern Aesthetics**: Rounded corners, smooth transitions, card-based layout
+- **Animated Play Button**: Colorful rotating gradient circle when playlist has videos
+- **Toggle Switches**: Modern styled toggle switches for Loop and Shuffle
+- **Touch-friendly**: Minimum 44px tap targets for mobile use
 
-#### 5. Restructured Header
-- Settings button and theme toggle are in the header area
-- Settings button has white color with hover glow effect
-- Clean, unified header layout
+## Supported Platforms
 
-#### 6. Video Sound Control via Lightbox
-- Videos are muted when lightbox is closed
-- Videos are unmuted when lightbox is opened
-- Works with YouTube (mute/unMute API), Vimeo (setVolume), and Coub
+| Platform | URL Formats |
+|----------|-------------|
+| YouTube  | `youtube.com/watch?v=ID`, `youtu.be/ID`, `youtube.com/embed/ID` |
+| Vimeo    | `vimeo.com/ID`, `player.vimeo.com/video/ID` |
+| Coub     | `coub.com/view/ID`, `coub.com/embed/ID` |
 
-#### 7. YouTube Shorts Support
-- YouTube Shorts URLs (`youtube.com/shorts/VIDEO_ID`) are recognized
-- Converted to standard YouTube embed format
-- Works in both manual URL input and file import
-
-#### 8. YouTube Playlist Import via RSS/XML
-- Paste a YouTube playlist URL to import all videos
-- Client-side fetch attempted first
-- Falls back to local proxy server if CORS blocks direct access
-- See [Proxy Setup](#proxy-setup) below
-
-#### 9. Auto-Play Fix (fix_5-5_AP)
-- Tracks user play/pause intent with `isPlaying` flag
-- When user pauses, autoplay/retry logic stops
-- When lightbox is closed, playback intent is cleared
-- Prevents unwanted video restarts after manual pause
-
-## Getting Started
-
-### Basic Usage
-
-1. Open `index_fixed.html` in a modern web browser
-2. Enter a video URL in the input field and click "Add"
-3. Click on a playlist item or the play button to start playback
-4. Videos play in a lightbox overlay with sound
-
-### Supported URL Formats
-
-**YouTube:**
-- `https://www.youtube.com/watch?v=VIDEO_ID`
-- `https://youtu.be/VIDEO_ID`
-- `https://www.youtube.com/embed/VIDEO_ID`
-- `https://www.youtube.com/shorts/VIDEO_ID` (Shorts)
-- `https://www.youtube.com/playlist?list=PLAYLIST_ID` (Playlist import)
-
-**Vimeo:**
-- `https://vimeo.com/VIDEO_ID`
-- `https://player.vimeo.com/video/VIDEO_ID`
-
-**Coub:**
-- `https://coub.com/view/VIDEO_ID`
-- `https://coub.com/embed/VIDEO_ID`
-
-### File Import
-
-Import multiple videos at once using CSV or TXT files:
-
-**TXT format** (one URL per line):
-```
-https://www.youtube.com/watch?v=dQw4w9WgXcQ
-https://vimeo.com/123456789
-https://coub.com/view/abc123
-```
-
-**CSV format** (URLs in any column):
-```
-title,url
-My Video,https://www.youtube.com/watch?v=dQw4w9WgXcQ
-Another,https://vimeo.com/123456789
-```
-
-## Proxy Setup
-
-### YouTube Playlist Import Proxy
-
-The playlist import feature requires a local proxy server to bypass CORS restrictions when fetching YouTube RSS feeds.
-
-#### Requirements
-- Python 3.6+ (uses only standard library modules)
-
-#### Starting the Proxy
-
-```bash
-cd final/
-python3 playlist_proxy.py
-```
-
-The server starts on `http://localhost:8080` by default.
-
-#### Custom Port
-
-```bash
-python3 playlist_proxy.py --port 9090
-```
-
-#### API Endpoints
-
-**GET /fetch-playlist?id=PLAYLIST_ID**
-
-Fetches a YouTube playlist's RSS feed and returns video URLs.
-
-Response:
-```json
-{
-  "videos": [
-    "https://www.youtube.com/watch?v=VIDEO_ID_1",
-    "https://www.youtube.com/watch?v=VIDEO_ID_2"
-  ],
-  "count": 2,
-  "playlist_id": "PLxxxxxxxx"
-}
-```
-
-**GET /health**
-
-Health check endpoint.
-
-Response:
-```json
-{
-  "status": "ok"
-}
-```
-
-#### Error Handling
-- Returns appropriate HTTP status codes (400, 404, 502, 500)
-- JSON error responses with descriptive messages
-- Handles network failures, invalid playlists, and parsing errors
-
-## Architecture
+## File Structure
 
 ```
 final/
-├── index_fixed.html      # Main HTML file
+├── index.html          # Main HTML structure with lightbox overlay
 ├── css/
-│   └── styles.css        # All styles (light/dark themes)
+│   └── styles.css      # Complete styles with theme system and responsive design
 ├── js/
-│   ├── app.js            # Main application controller
-│   ├── playlist.js       # Playlist management module
-│   └── video-player.js   # Video player & platform APIs
-├── playlist_proxy.py     # Python proxy for playlist import
-├── test_videos.txt       # Sample test file
-├── test_videos.csv       # Sample test CSV
-└── README.md             # This file
+│   ├── app.js          # Main application controller
+│   ├── playlist.js     # Playlist management with shuffle support
+│   └── video-player.js # Video player with lightbox integration
+├── README.md           # This file
+├── test_videos.txt     # Sample test file
+├── test_videos.csv     # Sample test file
+└── ...
 ```
 
-### Module Responsibilities
+## Architecture
 
-- **playlist.js**: Manages video queue, loop/shuffle modes, navigation
-- **video-player.js**: Platform detection, URL parsing, video loading, mute/unmute, lightbox integration
-- **app.js**: UI binding, event handling, file import, playlist URL handling, theme management
+The application uses a modular ES6 module architecture:
 
-## Browser Compatibility
+- **`playlist.js`**: Manages the video queue, loop/shuffle state, and playlist operations
+- **`video-player.js`**: Handles video loading, platform API integration, lightbox display, and playback control
+- **`app.js`**: Orchestrates the UI, binds events, manages theme, and coordinates between modules
+
+## Usage
+
+1. Open `index.html` in a modern web browser
+2. Paste a video URL into the input field and click "Add" (or press Enter)
+3. Alternatively, import a file with video URLs using the "Import" button
+4. Click the video container (play button) to start playback in the lightbox
+5. Click any playlist item to jump to that video
+6. Use Loop and Shuffle toggles to control playback order
+7. Press ESC or click the X button to close the lightbox (pauses playback)
+8. Click the video container again to resume playback
+
+## Keyboard Shortcuts
+
+| Key | Action |
+|-----|--------|
+| ESC | Close lightbox (pause playback) |
+| Enter | Add URL from input field |
+
+## Browser Support
 
 - Chrome 90+
 - Firefox 88+
 - Safari 14+
 - Edge 90+
 
-## Settings
-
-### Coub Timer
-Configure how long Coub videos play before auto-advancing:
-1. Click the settings (gear) icon in the header
-2. Enter duration in seconds (1-99999)
-3. Click "Save Settings"
-
-Default: 30 seconds
-
-### Theme
-Toggle between light and dark themes using the sun/moon icon in the header. Preference is saved to localStorage.
-
-### Loop Mode
-When enabled (default), the playlist restarts from the beginning after the last video ends. Toggle via the "Loop" switch in the playlist controls.
-
-### Shuffle Mode
-When enabled, videos play in random order. Toggle via the "Shuffle" switch in the playlist controls.
-
 ## Technical Notes
 
-- Uses ES6 modules (`type="module"` scripts)
-- YouTube IFrame API for YouTube video control
-- Vimeo Player.js API for Vimeo video control
-- Coub embedded via iframe with timer-based advancement
-- No external frontend dependencies (vanilla JS/CSS)
-- localStorage for persisting user preferences
-- All autoplay fix code marked with `// fix_5-5_AP` comments
+- No external library dependencies (pure HTML/CSS/JS)
+- YouTube IFrame API and Vimeo Player API loaded for platform integration
+- CSS custom properties for theming
+- Fisher-Yates shuffle algorithm for unbiased randomization
+- localStorage for persistent settings and theme preference
+- CSS transitions for smooth lightbox open/close (300ms)
+- 500ms delay between video transitions for smooth operation
+- Autoplay with mute workaround for browser autoplay policies
