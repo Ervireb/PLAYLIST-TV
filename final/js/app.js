@@ -1,6 +1,8 @@
 /**
  * Main Application Controller
- * Integrates playlist and video player modules with UI
+ * Integrates playlist and video player modules with UI.
+ * Features: Lightbox playback, shuffle, loop, theme toggle,
+ * file import, and modern UI interactions.
  */
 
 import Playlist from './playlist.js';
@@ -16,17 +18,20 @@ class App {
         // DOM elements
         this.elements = {
             videoContainer: document.getElementById('videoContainer'),
+            playButtonWrapper: document.getElementById('playButtonWrapper'),
+            playButtonCircle: document.getElementById('playButtonCircle'),
+            playButtonText: document.getElementById('playButtonText'),
             videoInfo: document.getElementById('videoInfo'),
             platformBadge: document.getElementById('platformBadge'),
             videoTitle: document.getElementById('videoTitle'),
             videoUrlInput: document.getElementById('videoUrlInput'),
             addButton: document.getElementById('addButton'),
-            playButton: document.getElementById('playButton'),
-            skipButton: document.getElementById('skipButton'),
             clearButton: document.getElementById('clearButton'),
             playlistElement: document.getElementById('playlist'),
             playlistCount: document.getElementById('playlistCount'),
             loopToggle: document.getElementById('loopToggle'),
+            shuffleToggle: document.getElementById('shuffleToggle'),
+            themeToggle: document.getElementById('themeToggle'),
             settingsButton: document.getElementById('settingsButton'),
             settingsPanel: document.getElementById('settingsPanel'),
             closeSettings: document.getElementById('closeSettings'),
@@ -46,7 +51,8 @@ class App {
             importMessage: document.getElementById('importMessage'),
             cancelImport: document.getElementById('cancelImport'),
             addToQueue: document.getElementById('addToQueue'),
-            replaceQueue: document.getElementById('replaceQueue')
+            replaceQueue: document.getElementById('replaceQueue'),
+            lightboxOverlay: document.getElementById('lightboxOverlay')
         };
 
         // Store parsed import data
@@ -65,6 +71,9 @@ class App {
 
         // Initialize settings
         this.initSettings();
+
+        // Initialize theme
+        this.initTheme();
 
         // Initial UI update
         this.updateUI();
@@ -86,14 +95,9 @@ class App {
             }
         });
 
-        // Play button
-        this.elements.playButton.addEventListener('click', () => {
-            this.handlePlay();
-        });
-
-        // Skip button
-        this.elements.skipButton.addEventListener('click', () => {
-            this.handleSkip();
+        // Video container click - opens lightbox and starts/resumes playback
+        this.elements.videoContainer.addEventListener('click', () => {
+            this.handleVideoContainerClick();
         });
 
         // Clear button
@@ -105,6 +109,20 @@ class App {
         if (this.elements.loopToggle) {
             this.elements.loopToggle.addEventListener('change', (e) => {
                 this.handleLoopToggle(e.target.checked);
+            });
+        }
+
+        // Shuffle toggle
+        if (this.elements.shuffleToggle) {
+            this.elements.shuffleToggle.addEventListener('change', (e) => {
+                this.handleShuffleToggle(e.target.checked);
+            });
+        }
+
+        // Theme toggle
+        if (this.elements.themeToggle) {
+            this.elements.themeToggle.addEventListener('click', () => {
+                this.toggleTheme();
             });
         }
 
@@ -198,6 +216,26 @@ class App {
     }
 
     /**
+     * Handle video container click
+     * Opens lightbox and starts/resumes playback
+     */
+    handleVideoContainerClick() {
+        if (this.playlist.isEmpty()) {
+            this.showMessage('Add videos to your playlist first', 'info');
+            return;
+        }
+
+        // If we have a video loaded and lightbox was closed, resume
+        if (this.isPlaying && this.videoPlayer.hasVideo()) {
+            this.videoPlayer.resumeInLightbox();
+            return;
+        }
+
+        // Start playing from current position or beginning
+        this.handlePlay();
+    }
+
+    /**
      * Handle adding a video to the playlist
      */
     handleAddVideo() {
@@ -208,15 +246,13 @@ class App {
             return;
         }
 
-        // Parse the URL
         const videoInfo = this.videoPlayer.parseUrl(url);
 
         if (!videoInfo) {
-            this.showMessage('Invalid video URL. Please enter a valid YouTube, Vimeo, or Coub URL.', 'error');
+            this.showMessage('Invalid URL. Enter a valid YouTube, Vimeo, or Coub URL.', 'error');
             return;
         }
 
-        // Add to playlist
         const success = this.playlist.add(videoInfo);
 
         if (!success) {
@@ -233,7 +269,7 @@ class App {
     }
 
     /**
-     * Handle play button click
+     * Handle play - starts playback from current position
      */
     async handlePlay() {
         if (this.playlist.isEmpty()) {
@@ -241,12 +277,7 @@ class App {
             return;
         }
 
-        // If already playing, do nothing
-        if (this.isPlaying) {
-            return;
-        }
-
-        // Get next video (will start from beginning if not playing)
+        // Get next video
         const video = this.playlist.getNext();
 
         if (!video) {
@@ -254,7 +285,7 @@ class App {
             return;
         }
 
-        // Load and play video
+        // Load and play video in lightbox
         this.isPlaying = true;
         const success = await this.videoPlayer.loadVideo(video);
 
@@ -264,21 +295,16 @@ class App {
         } else {
             this.showMessage('Failed to load video', 'error');
             this.isPlaying = false;
-            this.playNext(); // Try next video
+            this.playNext();
         }
-    }
-
-    /**
-     * Handle skip button click
-     */
-    handleSkip() {
-        this.playNext();
     }
 
     /**
      * Handle clear button click
      */
     handleClear() {
+        if (this.playlist.isEmpty()) return;
+
         if (confirm('Are you sure you want to clear the entire playlist?')) {
             this.playlist.clear();
             this.videoPlayer.showPlaceholder();
@@ -295,9 +321,14 @@ class App {
      */
     handleLoopToggle(enabled) {
         this.playlist.setLoopMode(enabled);
-        const message = enabled ? 'Loop mode enabled' : 'Loop mode disabled';
-        this.showMessage(message, 'info');
-        console.log('Loop mode:', enabled);
+    }
+
+    /**
+     * Handle shuffle toggle change
+     * @param {boolean} enabled - Shuffle mode enabled status
+     */
+    handleShuffleToggle(enabled) {
+        this.playlist.setShuffleMode(enabled);
     }
 
     /**
@@ -322,11 +353,10 @@ class App {
             if (success) {
                 this.updateVideoInfo(video);
                 this.updateUI();
-                this.showMessage('Playing from selected video', 'success');
             } else {
                 this.showMessage('Failed to load video', 'error');
                 this.isPlaying = false;
-                this.playNext(); // Try next video
+                this.playNext();
             }
         }
     }
@@ -335,23 +365,15 @@ class App {
      * Play the next video in the playlist
      */
     async playNext() {
-        const previousIndex = this.playlist.getCurrentIndex();
         const video = this.playlist.getNext();
 
         if (!video) {
-            // Playlist finished (loop mode is disabled)
+            // Playlist finished
             this.isPlaying = false;
             this.videoPlayer.showPlaceholder();
             this.updateVideoInfo(null);
             this.updateUI();
-            this.showMessage('Playlist finished', 'info');
             return;
-        }
-
-        // Check if playlist restarted (loop mode)
-        const currentIndex = this.playlist.getCurrentIndex();
-        if (this.playlist.getLoopMode() && previousIndex > currentIndex && currentIndex === 0) {
-            this.showMessage('Playlist restarting from beginning', 'info');
         }
 
         // Load and play next video
@@ -362,7 +384,7 @@ class App {
             this.updateUI();
         } else {
             this.showMessage('Failed to load video, skipping...', 'error');
-            this.playNext(); // Try next video
+            this.playNext();
         }
     }
 
@@ -388,8 +410,38 @@ class App {
      */
     updateUI() {
         this.updatePlaylistDisplay();
-        this.updateButtons();
         this.updatePlaylistCount();
+        this.updateVideoContainerState();
+        this.updateClearButton();
+    }
+
+    /**
+     * Update the video container play button state
+     */
+    updateVideoContainerState() {
+        const hasVideos = !this.playlist.isEmpty();
+        const container = this.elements.videoContainer;
+
+        // Remove all state classes
+        container.classList.remove('has-videos', 'now-playing');
+
+        if (this.isPlaying) {
+            container.classList.add('has-videos', 'now-playing');
+            this.elements.playButtonText.textContent = '▶ Now Playing — Click to reopen';
+        } else if (hasVideos) {
+            container.classList.add('has-videos');
+            this.elements.playButtonText.textContent = 'Click to play';
+        } else {
+            this.elements.playButtonText.textContent = 'Add videos to start playing';
+        }
+    }
+
+    /**
+     * Update clear button state
+     */
+    updateClearButton() {
+        const hasVideos = !this.playlist.isEmpty();
+        this.elements.clearButton.disabled = !hasVideos;
     }
 
     /**
@@ -409,7 +461,7 @@ class App {
         }
 
         this.elements.playlistElement.innerHTML = videos.map((video, index) => {
-            const isPlaying = index === currentIndex;
+            const isPlaying = index === currentIndex && this.isPlaying;
             return `
                 <div class="playlist-item ${isPlaying ? 'playing' : ''}" data-index="${index}">
                     <div class="playlist-item-number">${index + 1}</div>
@@ -418,7 +470,7 @@ class App {
                         <div class="playlist-item-url" title="${video.url}">${video.url}</div>
                     </div>
                     <button class="playlist-item-remove" data-index="${index}" aria-label="Remove video">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <line x1="18" y1="6" x2="6" y2="18"></line>
                             <line x1="6" y1="6" x2="18" y2="18"></line>
                         </svg>
@@ -431,7 +483,6 @@ class App {
         const playlistItems = this.elements.playlistElement.querySelectorAll('.playlist-item');
         playlistItems.forEach(item => {
             item.addEventListener('click', (e) => {
-                // Don't trigger if clicking the remove button
                 if (e.target.closest('.playlist-item-remove')) {
                     return;
                 }
@@ -471,23 +522,65 @@ class App {
     }
 
     /**
-     * Update button states
-     */
-    updateButtons() {
-        const hasVideos = !this.playlist.isEmpty();
-
-        this.elements.playButton.disabled = !hasVideos || this.isPlaying;
-        this.elements.skipButton.disabled = !this.isPlaying;
-        this.elements.clearButton.disabled = !hasVideos;
-    }
-
-    /**
      * Update playlist count display
      */
     updatePlaylistCount() {
         const count = this.playlist.getCount();
         this.elements.playlistCount.textContent = `(${count})`;
     }
+
+    /* ============================================
+       Theme System
+       ============================================ */
+
+    /**
+     * Initialize theme from localStorage or system preference
+     */
+    initTheme() {
+        let theme = 'light';
+
+        try {
+            const stored = localStorage.getItem('theme');
+            if (stored === 'dark' || stored === 'light') {
+                theme = stored;
+            } else {
+                // Check system preference
+                if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                    theme = 'dark';
+                }
+            }
+        } catch (error) {
+            console.warn('Could not access localStorage for theme:', error);
+        }
+
+        this.setTheme(theme);
+    }
+
+    /**
+     * Toggle between light and dark themes
+     */
+    toggleTheme() {
+        const current = document.documentElement.getAttribute('data-theme');
+        const newTheme = current === 'dark' ? 'light' : 'dark';
+        this.setTheme(newTheme);
+    }
+
+    /**
+     * Set the theme
+     * @param {string} theme - 'light' or 'dark'
+     */
+    setTheme(theme) {
+        document.documentElement.setAttribute('data-theme', theme);
+        try {
+            localStorage.setItem('theme', theme);
+        } catch (error) {
+            console.warn('Could not save theme to localStorage:', error);
+        }
+    }
+
+    /* ============================================
+       Settings
+       ============================================ */
 
     /**
      * Initialize settings from localStorage
@@ -507,7 +600,6 @@ class App {
      */
     showSettings() {
         if (this.elements.settingsPanel) {
-            // Update current values before showing
             const currentTimer = this.videoPlayer.getCoubTimer();
             if (this.elements.coubTimerInput) {
                 this.elements.coubTimerInput.value = currentTimer;
@@ -515,9 +607,9 @@ class App {
             if (this.elements.currentTimerValue) {
                 this.elements.currentTimerValue.textContent = currentTimer;
             }
-            
+
             this.elements.settingsPanel.style.display = 'flex';
-            document.body.style.overflow = 'hidden'; // Prevent background scrolling
+            document.body.style.overflow = 'hidden';
         }
     }
 
@@ -527,7 +619,7 @@ class App {
     hideSettings() {
         if (this.elements.settingsPanel) {
             this.elements.settingsPanel.style.display = 'none';
-            document.body.style.overflow = ''; // Restore scrolling
+            document.body.style.overflow = '';
         }
     }
 
@@ -538,7 +630,7 @@ class App {
     validateCoubTimer(value) {
         const numValue = parseInt(value, 10);
         const input = this.elements.coubTimerInput;
-        
+
         if (isNaN(numValue) || numValue < 1 || numValue > 99999) {
             if (input) {
                 input.setCustomValidity('Please enter a value between 1 and 99999');
@@ -557,21 +649,17 @@ class App {
         const timerValue = this.elements.coubTimerInput.value;
         const numValue = parseInt(timerValue, 10);
 
-        // Validate input
         if (isNaN(numValue) || numValue < 1 || numValue > 99999) {
             this.showMessage('Please enter a valid timer value between 1 and 99999 seconds', 'error');
             return;
         }
 
-        // Save to localStorage via videoPlayer
         const success = this.videoPlayer.setCoubTimer(numValue);
 
         if (success) {
-            // Update display
             if (this.elements.currentTimerValue) {
                 this.elements.currentTimerValue.textContent = numValue;
             }
-            
             this.showMessage(`Coub timer updated to ${numValue} seconds`, 'success');
             this.hideSettings();
         } else {
@@ -584,24 +672,24 @@ class App {
      */
     handleResetSettings() {
         const defaultTimer = 30;
-        
-        // Reset to default
         const success = this.videoPlayer.setCoubTimer(defaultTimer);
 
         if (success) {
-            // Update inputs
             if (this.elements.coubTimerInput) {
                 this.elements.coubTimerInput.value = defaultTimer;
             }
             if (this.elements.currentTimerValue) {
                 this.elements.currentTimerValue.textContent = defaultTimer;
             }
-            
             this.showMessage('Settings reset to default (30 seconds)', 'info');
         } else {
             this.showMessage('Failed to reset settings', 'error');
         }
     }
+
+    /* ============================================
+       Messages
+       ============================================ */
 
     /**
      * Show a temporary message to the user
@@ -609,7 +697,6 @@ class App {
      * @param {string} type - Message type (success, error, warning, info)
      */
     showMessage(message, type = 'info') {
-        // Create message element
         const messageEl = document.createElement('div');
         messageEl.className = `message message-${type}`;
         messageEl.textContent = message;
@@ -617,43 +704,32 @@ class App {
             position: fixed;
             top: 20px;
             right: 20px;
-            padding: 16px 24px;
+            padding: 14px 22px;
             background: ${this.getMessageColor(type)};
             color: white;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            z-index: 1000;
-            animation: slideIn 0.3s ease-out;
-            max-width: 400px;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            z-index: 10001;
+            animation: msgSlideIn 0.3s ease-out;
+            max-width: 360px;
             font-weight: 500;
+            font-size: 0.9rem;
         `;
 
-        // Add animation
-        const style = document.createElement('style');
-        style.textContent = `
-            @keyframes slideIn {
-                from {
-                    transform: translateX(400px);
-                    opacity: 0;
-                }
-                to {
-                    transform: translateX(0);
-                    opacity: 1;
-                }
-            }
-            @keyframes slideOut {
-                from {
-                    transform: translateX(0);
-                    opacity: 1;
-                }
-                to {
-                    transform: translateX(400px);
-                    opacity: 0;
-                }
-            }
-        `;
+        // Add animation styles if not already present
         if (!document.querySelector('style[data-message-style]')) {
+            const style = document.createElement('style');
             style.setAttribute('data-message-style', 'true');
+            style.textContent = `
+                @keyframes msgSlideIn {
+                    from { transform: translateX(100%); opacity: 0; }
+                    to { transform: translateX(0); opacity: 1; }
+                }
+                @keyframes msgSlideOut {
+                    from { transform: translateX(0); opacity: 1; }
+                    to { transform: translateX(100%); opacity: 0; }
+                }
+            `;
             document.head.appendChild(style);
         }
 
@@ -661,7 +737,7 @@ class App {
 
         // Remove after 3 seconds
         setTimeout(() => {
-            messageEl.style.animation = 'slideOut 0.3s ease-out';
+            messageEl.style.animation = 'msgSlideOut 0.3s ease-out';
             setTimeout(() => {
                 if (messageEl.parentNode) {
                     messageEl.parentNode.removeChild(messageEl);
@@ -680,10 +756,14 @@ class App {
             success: '#10b981',
             error: '#ef4444',
             warning: '#f59e0b',
-            info: '#3b82f6'
+            info: '#6366f1'
         };
         return colors[type] || colors.info;
     }
+
+    /* ============================================
+       File Import
+       ============================================ */
 
     /**
      * Handle file upload
@@ -691,40 +771,31 @@ class App {
      */
     async handleFileUpload(event) {
         const file = event.target.files[0];
-        
+
         if (!file) {
             return;
         }
 
-        // Validate file type
         const fileName = file.name.toLowerCase();
         if (!fileName.endsWith('.csv') && !fileName.endsWith('.txt')) {
             this.showMessage('Please select a CSV or TXT file', 'error');
-            this.elements.fileInput.value = ''; // Reset input
+            this.elements.fileInput.value = '';
             return;
         }
 
-        // Show loading message
         this.showMessage('Processing file...', 'info');
 
         try {
-            // Read file content
             const content = await this.readFileContent(file);
-            
-            // Extract URLs from file
             const extractedData = await this.extractURLsFromFile(content, fileName);
-            
-            // Validate imported URLs
             const validationResult = this.validateImportedURLs(extractedData.urls);
-            
-            // Check if there are any valid URLs
+
             if (validationResult.valid.length === 0) {
                 this.showMessage('No valid video URLs found in file', 'warning');
-                this.elements.fileInput.value = ''; // Reset input
+                this.elements.fileInput.value = '';
                 return;
             }
 
-            // Store import data
             this.importData = {
                 totalUrls: extractedData.urls.length,
                 validUrls: validationResult.valid,
@@ -732,14 +803,11 @@ class App {
                 duplicateUrls: validationResult.duplicates
             };
 
-            // Show import dialog
             this.showImportDialog();
-
         } catch (error) {
             console.error('Error processing file:', error);
             this.showMessage('Failed to read file. Please try again.', 'error');
         } finally {
-            // Reset file input to allow re-uploading the same file
             this.elements.fileInput.value = '';
         }
     }
@@ -752,15 +820,8 @@ class App {
     readFileContent(file) {
         return new Promise((resolve, reject) => {
             const reader = new FileReader();
-            
-            reader.onload = (e) => {
-                resolve(e.target.result);
-            };
-            
-            reader.onerror = () => {
-                reject(new Error('Failed to read file'));
-            };
-            
+            reader.onload = (e) => resolve(e.target.result);
+            reader.onerror = () => reject(new Error('Failed to read file'));
             reader.readAsText(file);
         });
     }
@@ -776,17 +837,12 @@ class App {
         const urls = [];
 
         if (isCSV) {
-            // Parse CSV file
             urls.push(...this.parseCSVFile(content));
         } else {
-            // Parse TXT file
             urls.push(...this.parseTXTFile(content));
         }
 
-        return {
-            urls: urls,
-            fileType: isCSV ? 'CSV' : 'TXT'
-        };
+        return { urls: urls, fileType: isCSV ? 'CSV' : 'TXT' };
     }
 
     /**
@@ -799,24 +855,20 @@ class App {
         const lines = content.split(/\r?\n/);
 
         for (const line of lines) {
-            // Skip empty lines and comment lines
             const trimmedLine = line.trim();
             if (!trimmedLine || trimmedLine.startsWith('#')) {
                 continue;
             }
 
-            // Try both comma and semicolon as delimiters
             const delimiters = [',', ';'];
             let foundUrl = false;
 
             for (const delimiter of delimiters) {
                 if (line.includes(delimiter)) {
                     const fields = line.split(delimiter);
-                    
-                    // Check each field for a valid URL
+
                     for (const field of fields) {
                         const trimmedField = field.trim();
-                        // Check if field looks like a URL
                         if (trimmedField && (
                             trimmedField.includes('youtube.com') ||
                             trimmedField.includes('youtu.be') ||
@@ -825,17 +877,14 @@ class App {
                         )) {
                             urls.push(trimmedField);
                             foundUrl = true;
-                            break; // Take first URL found in the line
+                            break;
                         }
                     }
-                    
-                    if (foundUrl) {
-                        break;
-                    }
+
+                    if (foundUrl) break;
                 }
             }
 
-            // If no delimiter found, treat entire line as potential URL
             if (!foundUrl && (
                 trimmedLine.includes('youtube.com') ||
                 trimmedLine.includes('youtu.be') ||
@@ -859,13 +908,11 @@ class App {
         const lines = content.split(/\r?\n/);
 
         for (const line of lines) {
-            // Skip empty lines and comment lines
             const trimmedLine = line.trim();
             if (!trimmedLine || trimmedLine.startsWith('#')) {
                 continue;
             }
 
-            // Check if line looks like a URL
             if (trimmedLine.includes('youtube.com') ||
                 trimmedLine.includes('youtu.be') ||
                 trimmedLine.includes('vimeo.com') ||
@@ -880,7 +927,7 @@ class App {
     /**
      * Validate imported URLs
      * @param {Array<string>} urls - Array of URLs to validate
-     * @returns {Object} - Validation result with valid, invalid, and duplicate URLs
+     * @returns {Object} - Validation result
      */
     validateImportedURLs(urls) {
         const valid = [];
@@ -891,18 +938,15 @@ class App {
 
         for (const url of urls) {
             const trimmedUrl = url.trim();
-            
-            // Check for duplicates in the import file
+
             if (seenUrls.has(trimmedUrl)) {
-                continue; // Skip duplicate within file
+                continue;
             }
             seenUrls.add(trimmedUrl);
 
-            // Parse URL using video player
             const videoInfo = this.videoPlayer.parseUrl(trimmedUrl);
 
             if (videoInfo) {
-                // Check if URL already exists in playlist
                 if (existingUrls.has(trimmedUrl)) {
                     duplicates.push(trimmedUrl);
                 } else {
@@ -913,44 +957,34 @@ class App {
             }
         }
 
-        return {
-            valid: valid,
-            invalid: invalid,
-            duplicates: duplicates
-        };
+        return { valid, invalid, duplicates };
     }
 
     /**
      * Show import dialog with summary
      */
     showImportDialog() {
-        if (!this.importData) {
-            return;
-        }
+        if (!this.importData) return;
 
         const { totalUrls, validUrls, invalidUrls, duplicateUrls } = this.importData;
 
-        // Update summary values
         this.elements.totalUrls.textContent = totalUrls;
         this.elements.validUrls.textContent = validUrls.length;
         this.elements.invalidUrls.textContent = invalidUrls.length;
         this.elements.duplicateUrls.textContent = duplicateUrls.length;
 
-        // Show/hide invalid URLs item
         if (invalidUrls.length > 0) {
             this.elements.invalidUrlsItem.style.display = 'flex';
         } else {
             this.elements.invalidUrlsItem.style.display = 'none';
         }
 
-        // Show/hide duplicate URLs item
         if (duplicateUrls.length > 0) {
             this.elements.duplicateUrlsItem.style.display = 'flex';
         } else {
             this.elements.duplicateUrlsItem.style.display = 'none';
         }
 
-        // Update message
         let message = `Ready to import ${validUrls.length} valid video${validUrls.length !== 1 ? 's' : ''}.`;
         if (invalidUrls.length > 0) {
             message += ` ${invalidUrls.length} invalid URL${invalidUrls.length !== 1 ? 's' : ''} will be skipped.`;
@@ -960,7 +994,6 @@ class App {
         }
         this.elements.importMessage.textContent = message;
 
-        // Show dialog
         this.elements.importDialog.style.display = 'flex';
         document.body.style.overflow = 'hidden';
     }
@@ -988,28 +1021,19 @@ class App {
      * Handle add to queue action
      */
     handleAddToQueue() {
-        if (!this.importData || !this.importData.validUrls) {
-            return;
-        }
+        if (!this.importData || !this.importData.validUrls) return;
 
         const validUrls = this.importData.validUrls;
         let addedCount = 0;
 
-        // Add each valid URL to playlist
         for (const videoInfo of validUrls) {
             const success = this.playlist.add(videoInfo);
-            if (success) {
-                addedCount++;
-            }
+            if (success) addedCount++;
         }
 
-        // Update UI
         this.updateUI();
-        
-        // Hide dialog
         this.hideImportDialog();
 
-        // Show success message
         if (addedCount > 0) {
             this.showMessage(`Added ${addedCount} video${addedCount !== 1 ? 's' : ''} to playlist`, 'success');
         } else {
@@ -1021,34 +1045,23 @@ class App {
      * Handle replace queue action
      */
     handleReplaceQueue() {
-        if (!this.importData || !this.importData.validUrls) {
-            return;
-        }
+        if (!this.importData || !this.importData.validUrls) return;
 
         const validUrls = this.importData.validUrls;
 
-        // Clear current playlist
         this.playlist.clear();
         this.videoPlayer.showPlaceholder();
         this.isPlaying = false;
         this.updateVideoInfo(null);
 
-        // Add new videos
         let addedCount = 0;
         for (const videoInfo of validUrls) {
             const success = this.playlist.add(videoInfo);
-            if (success) {
-                addedCount++;
-            }
+            if (success) addedCount++;
         }
 
-        // Update UI
         this.updateUI();
-        
-        // Hide dialog
         this.hideImportDialog();
-
-        // Show success message
         this.showMessage(`Playlist replaced with ${addedCount} video${addedCount !== 1 ? 's' : ''}`, 'success');
     }
 }

@@ -1,6 +1,7 @@
 /**
  * Video Player Module
- * Handles video playback, platform detection, and API integration
+ * Handles video playback, platform detection, API integration,
+ * and lightbox-based video display (replaces fullscreen).
  */
 
 /* global YT, Vimeo */
@@ -13,30 +14,33 @@ class VideoPlayer {
         this.onVideoEndCallback = null;
         this.youtubeReady = false;
         this.vimeoReady = true; // Vimeo API loads synchronously
-        this.wasFullscreen = false; // Track fullscreen state
         this.youtubeAutoplayRetries = 0;
         this.coubAutoplayRetries = 0;
         this.maxAutoplayRetries = 3;
-        this.defaultCoubTimer = 30; // Default 30 seconds for Coub videos
-        
+        this.defaultCoubTimer = 30;
+
+        // Lightbox state
+        this.lightboxOpen = false;
+        this.lightboxOverlay = document.getElementById('lightboxOverlay');
+        this.lightboxContent = document.getElementById('lightboxContent');
+        this.lightboxClose = document.getElementById('lightboxClose');
+
         // Initialize YouTube API
         this.initYouTubeAPI();
-        
-        // Listen for fullscreen changes
-        this.initFullscreenListeners();
+
+        // Initialize lightbox event listeners
+        this.initLightboxListeners();
     }
 
     /**
      * Initialize YouTube IFrame API
      */
     initYouTubeAPI() {
-        // Check if API is already loaded
         if (window.YT && window.YT.Player) {
             this.youtubeReady = true;
             return;
         }
 
-        // Wait for API to load
         window.onYouTubeIframeAPIReady = () => {
             this.youtubeReady = true;
             console.log('YouTube IFrame API ready');
@@ -44,34 +48,109 @@ class VideoPlayer {
     }
 
     /**
-     * Initialize fullscreen event listeners
+     * Initialize lightbox event listeners
      */
-    initFullscreenListeners() {
-        const fullscreenEvents = [
-            'fullscreenchange',
-            'webkitfullscreenchange',
-            'mozfullscreenchange',
-            'MSFullscreenChange'
-        ];
-
-        fullscreenEvents.forEach(event => {
-            document.addEventListener(event, () => {
-                this.wasFullscreen = this.isFullscreen();
+    initLightboxListeners() {
+        // Close button
+        if (this.lightboxClose) {
+            this.lightboxClose.addEventListener('click', () => {
+                this.closeLightbox();
             });
+        }
+
+        // ESC key closes lightbox
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && this.lightboxOpen) {
+                this.closeLightbox();
+            }
         });
+
+        // Click on overlay background closes lightbox
+        if (this.lightboxOverlay) {
+            this.lightboxOverlay.addEventListener('click', (e) => {
+                if (e.target === this.lightboxOverlay) {
+                    this.closeLightbox();
+                }
+            });
+        }
     }
 
     /**
-     * Check if currently in fullscreen mode
-     * @returns {boolean} - True if in fullscreen
+     * Open the lightbox overlay
      */
-    isFullscreen() {
-        return !!(
-            document.fullscreenElement ||
-            document.webkitFullscreenElement ||
-            document.mozFullScreenElement ||
-            document.msFullscreenElement
-        );
+    openLightbox() {
+        if (this.lightboxOverlay) {
+            this.lightboxOverlay.classList.add('active');
+            this.lightboxOpen = true;
+            document.body.style.overflow = 'hidden';
+        }
+    }
+
+    /**
+     * Close the lightbox overlay
+     * Pauses playback and remembers position
+     */
+    closeLightbox() {
+        if (this.lightboxOverlay) {
+            this.lightboxOverlay.classList.remove('active');
+            this.lightboxOpen = false;
+            document.body.style.overflow = '';
+
+            // Pause current video if playing
+            this.pauseCurrentVideo();
+        }
+    }
+
+    /**
+     * Pause the currently playing video
+     */
+    pauseCurrentVideo() {
+        try {
+            if (this.currentPlatform === 'youtube' && this.currentPlayer && this.currentPlayer.pauseVideo) {
+                this.currentPlayer.pauseVideo();
+            } else if (this.currentPlatform === 'vimeo' && this.currentPlayer && this.currentPlayer.pause) {
+                this.currentPlayer.pause();
+            } else if (this.currentPlatform === 'coub' && this.currentPlayer && this.currentPlayer.timeout) {
+                // Pause the coub timer
+                clearTimeout(this.currentPlayer.timeout);
+                this.currentPlayer.timeout = null;
+            }
+        } catch (error) {
+            console.warn('Could not pause video:', error);
+        }
+    }
+
+    /**
+     * Resume the currently paused video in lightbox
+     */
+    resumeInLightbox() {
+        this.openLightbox();
+
+        try {
+            if (this.currentPlatform === 'youtube' && this.currentPlayer && this.currentPlayer.playVideo) {
+                this.currentPlayer.playVideo();
+            } else if (this.currentPlatform === 'vimeo' && this.currentPlayer && this.currentPlayer.play) {
+                this.currentPlayer.play();
+            } else if (this.currentPlatform === 'coub' && this.currentPlayer) {
+                // Restart coub timer with remaining time or default
+                const timerDuration = this.getCoubTimer();
+                this.currentPlayer.timeout = setTimeout(() => {
+                    if (this.onVideoEndCallback) {
+                        this.onVideoEndCallback();
+                    }
+                }, timerDuration * 1000);
+            }
+        } catch (error) {
+            console.warn('Could not resume video:', error);
+        }
+    }
+
+    /**
+     * Check if lightbox is currently open
+     * @returns {boolean}
+     */
+    isLightboxOpen() {
+        return this.lightboxOpen;
     }
 
     /**
@@ -106,88 +185,10 @@ class VideoPlayer {
                 return false;
             }
             localStorage.setItem('coubTimer', value.toString());
-            console.log('Coub timer updated to:', value, 'seconds');
             return true;
         } catch (error) {
             console.error('Could not save to localStorage:', error);
             return false;
-        }
-    }
-
-    /**
-     * Enter fullscreen mode
-     * @param {HTMLElement} element - Element to make fullscreen
-     * 
-     * FUTURE ENHANCEMENT CONSIDERATION:
-     * ===================================
-     * Current Implementation: Uses browser's native Fullscreen API
-     * - Works across all platforms (YouTube, Vimeo, Coub)
-     * - Requires cross-browser compatibility handling
-     * - May have inconsistent behavior across different browsers
-     * 
-     * Future Vimeo-Inspired Approach:
-     * - Vimeo Player API provides its own fullscreen methods:
-     *   * player.requestFullscreen() - Enter fullscreen mode
-     *   * player.exitFullscreen() - Exit fullscreen mode
-     *   * player.getFullscreen() - Check fullscreen state
-     * 
-     * Benefits of Platform-Specific Fullscreen APIs:
-     * 1. Better control over fullscreen behavior per platform
-     * 2. Fewer browser compatibility issues
-     * 3. More consistent user experience
-     * 4. Platform-specific optimizations
-     * 5. Better integration with platform features
-     * 
-     * Implementation Strategy for Future:
-     * - Check current platform (YouTube, Vimeo, Coub)
-     * - Use platform-specific fullscreen API if available:
-     *   * Vimeo: player.requestFullscreen()
-     *   * YouTube: Could use iframe.requestFullscreen() on the iframe element
-     *   * Coub: Fallback to browser Fullscreen API
-     * - Fallback to browser Fullscreen API if platform API unavailable
-     * 
-     * Note: YouTube IFrame API doesn't have dedicated fullscreen methods,
-     * but we could target the iframe element directly for better control.
-     * 
-     * Example Future Implementation:
-     * if (this.currentPlatform === 'vimeo' && this.currentPlayer.requestFullscreen) {
-     *     this.currentPlayer.requestFullscreen().catch(err => console.error(err));
-     * } else if (this.currentPlatform === 'youtube') {
-     *     // Target YouTube iframe directly
-     *     const iframe = this.container.querySelector('iframe');
-     *     if (iframe && iframe.requestFullscreen) {
-     *         iframe.requestFullscreen().catch(err => console.error(err));
-     *     }
-     * } else {
-     *     // Fallback to container fullscreen
-     *     this.container.requestFullscreen().catch(err => console.error(err));
-     * }
-     */
-    enterFullscreen(element) {
-        if (!element) {
-            element = this.container;
-        }
-
-        console.log('Attempting to enter fullscreen mode...');
-
-        try {
-            if (element.requestFullscreen) {
-                element.requestFullscreen().catch(err => {
-                    console.error('Fullscreen request failed:', err);
-                });
-            } else if (element.webkitRequestFullscreen) {
-                element.webkitRequestFullscreen();
-            } else if (element.webkitRequestFullScreen) {
-                element.webkitRequestFullScreen();
-            } else if (element.mozRequestFullScreen) {
-                element.mozRequestFullScreen();
-            } else if (element.msRequestFullscreen) {
-                element.msRequestFullscreen();
-            } else {
-                console.warn('Fullscreen API not supported by this browser');
-            }
-        } catch (error) {
-            console.error('Error entering fullscreen:', error);
         }
     }
 
@@ -258,7 +259,7 @@ class VideoPlayer {
     }
 
     /**
-     * Load and play a video
+     * Load and play a video in the lightbox
      * @param {Object} video - Video object with platform and videoId
      * @returns {Promise<boolean>} - Success status
      */
@@ -268,14 +269,13 @@ class VideoPlayer {
             return false;
         }
 
-        // Store fullscreen state before clearing player
-        const shouldReenterFullscreen = this.wasFullscreen;
-        console.log('Loading video, fullscreen state:', shouldReenterFullscreen);
-
         // Clear current player
         this.clearPlayer();
 
         this.currentPlatform = video.platform;
+
+        // Open lightbox
+        this.openLightbox();
 
         try {
             switch (video.platform) {
@@ -293,19 +293,6 @@ class VideoPlayer {
                     return false;
             }
 
-            // Re-enter fullscreen if it was active before
-            // Increased delay to ensure video iframe is fully loaded and ready
-            if (shouldReenterFullscreen) {
-                console.log('Re-entering fullscreen mode after video load...');
-                setTimeout(() => {
-                    if (this.isFullscreen()) {
-                        console.log('Already in fullscreen, skipping re-entry');
-                    } else {
-                        this.enterFullscreen();
-                    }
-                }, 800); // Increased delay for better reliability across platforms
-            }
-
             return true;
         } catch (error) {
             console.error('Error loading video:', error);
@@ -314,66 +301,53 @@ class VideoPlayer {
     }
 
     /**
-     * Load YouTube video
+     * Load YouTube video into lightbox
      * @param {string} videoId - YouTube video ID
      */
     async loadYouTube(videoId) {
-        // Wait for API to be ready
         if (!this.youtubeReady) {
             await this.waitForYouTubeAPI();
         }
 
-        // Reset autoplay retry counter
         this.youtubeAutoplayRetries = 0;
 
         return new Promise((resolve, reject) => {
             try {
-                // Create iframe element
-                const iframe = document.createElement('div');
-                iframe.id = 'youtube-player-' + Date.now();
-                this.container.innerHTML = '';
-                this.container.appendChild(iframe);
+                const playerDiv = document.createElement('div');
+                playerDiv.id = 'youtube-player-' + Date.now();
+                this.lightboxContent.innerHTML = '';
+                this.lightboxContent.appendChild(playerDiv);
 
-                // Create YouTube player
-                this.currentPlayer = new YT.Player(iframe.id, {
+                this.currentPlayer = new YT.Player(playerDiv.id, {
                     videoId: videoId,
                     width: '100%',
                     height: '100%',
                     playerVars: {
                         autoplay: 1,
-                        mute: 1, // Mute to comply with autoplay policies
+                        mute: 1,
                         rel: 0,
                         modestbranding: 1
                     },
                     events: {
                         onReady: (event) => {
-                            console.log('YouTube player ready');
-                            // Unmute after a short delay (user interaction workaround)
+                            // Unmute after short delay
                             setTimeout(() => {
                                 try {
                                     event.target.unMute();
                                 } catch (error) {
-                                    console.log('Could not unmute (autoplay policy):', error.message);
+                                    console.log('Could not unmute (autoplay policy)');
                                 }
                             }, 1000);
 
-                            // Implement autoplay detection and retry mechanism
                             this.checkYouTubeAutoplay(event.target);
-
                             resolve();
                         },
                         onStateChange: (event) => {
-                            // YT.PlayerState.ENDED = 0
                             if (event.data === YT.PlayerState.ENDED) {
-                                console.log('YouTube video ended');
-                                if (this.onVideoEndCallback) {
-                                    this.onVideoEndCallback();
-                                }
+                                this.handleVideoEnd();
                             }
-                            // YT.PlayerState.PLAYING = 1
                             if (event.data === YT.PlayerState.PLAYING) {
-                                console.log('YouTube video is playing');
-                                this.youtubeAutoplayRetries = 0; // Reset retries on successful play
+                                this.youtubeAutoplayRetries = 0;
                             }
                         },
                         onError: (event) => {
@@ -393,24 +367,16 @@ class VideoPlayer {
      * @param {Object} player - YouTube player instance
      */
     checkYouTubeAutoplay(player) {
-        // Wait 2.5 seconds then check if video is playing
         setTimeout(() => {
             try {
                 const state = player.getPlayerState();
-                // YT.PlayerState.PLAYING = 1, YT.PlayerState.BUFFERING = 3
                 if (state !== YT.PlayerState.PLAYING && state !== YT.PlayerState.BUFFERING) {
-                    console.log('YouTube autoplay failed, attempting to play manually...');
-                    
                     if (this.youtubeAutoplayRetries < this.maxAutoplayRetries) {
                         this.youtubeAutoplayRetries++;
                         player.playVideo();
-                        
-                        // Check again after retry
                         if (this.youtubeAutoplayRetries < this.maxAutoplayRetries) {
                             this.checkYouTubeAutoplay(player);
                         }
-                    } else {
-                        console.error('YouTube autoplay failed after maximum retries');
                     }
                 }
             } catch (error) {
@@ -420,13 +386,12 @@ class VideoPlayer {
     }
 
     /**
-     * Load Vimeo video
+     * Load Vimeo video into lightbox
      * @param {string} videoId - Vimeo video ID
      */
     async loadVimeo(videoId) {
         return new Promise((resolve, reject) => {
             try {
-                // Create iframe element
                 const iframe = document.createElement('iframe');
                 iframe.src = `https://player.vimeo.com/video/${videoId}?autoplay=1&muted=1`;
                 iframe.width = '100%';
@@ -435,16 +400,13 @@ class VideoPlayer {
                 iframe.allow = 'autoplay; fullscreen; picture-in-picture';
                 iframe.allowFullscreen = true;
 
-                this.container.innerHTML = '';
-                this.container.appendChild(iframe);
+                this.lightboxContent.innerHTML = '';
+                this.lightboxContent.appendChild(iframe);
 
-                // Initialize Vimeo Player API
                 if (window.Vimeo && window.Vimeo.Player) {
                     this.currentPlayer = new Vimeo.Player(iframe);
 
                     this.currentPlayer.on('loaded', () => {
-                        console.log('Vimeo player ready');
-                        // Try to unmute after a delay
                         setTimeout(() => {
                             this.currentPlayer.setMuted(false).catch(() => {
                                 console.log('Could not unmute Vimeo (autoplay policy)');
@@ -454,10 +416,7 @@ class VideoPlayer {
                     });
 
                     this.currentPlayer.on('ended', () => {
-                        console.log('Vimeo video ended');
-                        if (this.onVideoEndCallback) {
-                            this.onVideoEndCallback();
-                        }
+                        this.handleVideoEnd();
                     });
 
                     this.currentPlayer.on('error', (error) => {
@@ -465,7 +424,6 @@ class VideoPlayer {
                         reject(error);
                     });
                 } else {
-                    // Fallback if Vimeo API not available
                     console.warn('Vimeo Player API not available, using basic iframe');
                     resolve();
                 }
@@ -476,18 +434,15 @@ class VideoPlayer {
     }
 
     /**
-     * Load Coub video
+     * Load Coub video into lightbox
      * @param {string} videoId - Coub video ID
      */
     async loadCoub(videoId) {
         return new Promise((resolve) => {
             try {
-                // Reset autoplay retry counter
                 this.coubAutoplayRetries = 0;
 
-                // Create iframe element for Coub
                 const iframe = document.createElement('iframe');
-                // Ensure autoplay parameter is set to true for fullscreen and normal modes
                 iframe.src = `https://coub.com/embed/${videoId}?muted=false&autoplay=true&originalSize=false&startWithHD=true`;
                 iframe.width = '100%';
                 iframe.height = '100%';
@@ -495,74 +450,55 @@ class VideoPlayer {
                 iframe.allow = 'autoplay; fullscreen';
                 iframe.allowFullscreen = true;
 
-                this.container.innerHTML = '';
-                this.container.appendChild(iframe);
+                this.lightboxContent.innerHTML = '';
+                this.lightboxContent.appendChild(iframe);
 
-                console.log('Coub video loaded');
-                
-                // Get configurable timer value from localStorage
                 const timerDuration = this.getCoubTimer();
-                console.log(`Coub timer set to ${timerDuration} seconds`);
-                
-                // Implement autoplay workaround with click simulation
-                // This helps trigger playback in fullscreen mode
+
+                // Coub autoplay workaround
                 this.checkCoubAutoplay(iframe);
-                
-                // Coub doesn't have a reliable end event API
-                // Set a timeout to trigger next video (Coub videos are typically short loops)
-                // Use configurable timer value instead of hardcoded 30 seconds
+
+                // Set timer for Coub (no reliable end event)
                 this.currentPlayer = {
                     type: 'coub',
                     iframe: iframe,
                     timeout: setTimeout(() => {
-                        console.log(`Coub video timeout after ${timerDuration} seconds (assumed ended)`);
-                        if (this.onVideoEndCallback) {
-                            this.onVideoEndCallback();
-                        }
-                    }, timerDuration * 1000) // Convert seconds to milliseconds
+                        this.handleVideoEnd();
+                    }, timerDuration * 1000)
                 };
 
                 resolve();
             } catch (error) {
                 console.error('Error loading Coub:', error);
-                resolve(); // Resolve anyway to not block playlist
+                resolve();
             }
         });
     }
 
     /**
      * Check if Coub video is autoplaying and retry if needed
-     * Implements click simulation to trigger playback in fullscreen mode
      * @param {HTMLIFrameElement} iframe - Coub iframe element
      */
     checkCoubAutoplay(iframe) {
-        // Attempt to trigger autoplay with programmatic click simulation
-        // Multiple attempts with increasing delays to handle various loading scenarios
         const clickAttempts = [500, 1500, 2500];
-        
+
         clickAttempts.forEach((delay, index) => {
             setTimeout(() => {
                 if (this.coubAutoplayRetries < this.maxAutoplayRetries) {
                     try {
-                        console.log(`Coub autoplay attempt ${index + 1} at ${delay}ms`);
-                        
-                        // Try to simulate click on iframe to trigger playback
-                        // This is a workaround for autoplay restrictions
                         const clickEvent = new MouseEvent('click', {
                             view: window,
                             bubbles: true,
                             cancelable: true
                         });
                         iframe.dispatchEvent(clickEvent);
-                        
-                        // Try postMessage approach as well (cross-origin safe)
+
                         try {
                             iframe.contentWindow.postMessage('play', '*');
                         } catch (crossOriginError) {
-                            // Expected for cross-origin iframes, silently handle
-                            console.log('Cross-origin postMessage blocked (expected)');
+                            // Expected for cross-origin iframes
                         }
-                        
+
                         this.coubAutoplayRetries++;
                     } catch (error) {
                         console.warn('Coub autoplay trigger failed:', error.message);
@@ -570,6 +506,18 @@ class VideoPlayer {
                 }
             }, delay);
         });
+    }
+
+    /**
+     * Handle video end with a small delay for smooth transition
+     */
+    handleVideoEnd() {
+        if (this.onVideoEndCallback && this.lightboxOpen) {
+            // 500ms delay for smooth transition between videos
+            setTimeout(() => {
+                this.onVideoEndCallback();
+            }, 500);
+        }
     }
 
     /**
@@ -584,7 +532,6 @@ class VideoPlayer {
                 }
             }, 100);
 
-            // Timeout after 10 seconds
             setTimeout(() => {
                 clearInterval(checkInterval);
                 console.error('YouTube API load timeout');
@@ -613,6 +560,11 @@ class VideoPlayer {
         }
 
         this.currentPlatform = null;
+
+        // Clear lightbox content
+        if (this.lightboxContent) {
+            this.lightboxContent.innerHTML = '';
+        }
     }
 
     /**
@@ -624,18 +576,14 @@ class VideoPlayer {
     }
 
     /**
-     * Show placeholder
+     * Show placeholder in the video container (not lightbox)
+     * This is handled by the app.js via play button states
      */
     showPlaceholder() {
         this.clearPlayer();
-        this.container.innerHTML = `
-            <div class="placeholder">
-                <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
-                </svg>
-                <p>Add videos to your playlist to start playing</p>
-            </div>
-        `;
+        if (this.lightboxOpen) {
+            this.closeLightbox();
+        }
     }
 
     /**
@@ -645,7 +593,14 @@ class VideoPlayer {
     getCurrentPlatform() {
         return this.currentPlatform;
     }
+
+    /**
+     * Check if a video is currently loaded
+     * @returns {boolean}
+     */
+    hasVideo() {
+        return this.currentPlayer !== null;
+    }
 }
 
-// Export the VideoPlayer class
 export default VideoPlayer;
