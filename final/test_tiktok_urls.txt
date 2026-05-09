@@ -1,0 +1,8 @@
+https://www.tiktok.com/@username/video/7234567890123456789
+https://tiktok.com/@user/video/7234567890123456780
+https://m.tiktok.com/v/7234567890123456781
+https://vm.tiktok.com/ZMrABC123/
+https://www.tiktok.com/t/ZMrDEF456/
+# Invalid URLs for testing
+https://www.tiktok.com/@username
+https://www.tiktok.com/

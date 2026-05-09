@@ -1,7 +1,12 @@
 /**
  * Video Player Module
- * Handles video playback, platform detection, API integration,
- * and lightbox-based video display (replaces fullscreen).
+ * Handles video playback, platform detection, and API integration
+ * 
+ * Supported platforms:
+ * - YouTube (standard videos + Shorts)
+ * - Vimeo
+ * - Coub
+ * - TikTok
  */
 
 /* global YT, Vimeo */
@@ -14,33 +19,30 @@ class VideoPlayer {
         this.onVideoEndCallback = null;
         this.youtubeReady = false;
         this.vimeoReady = true; // Vimeo API loads synchronously
+        this.wasFullscreen = false; // Track fullscreen state
         this.youtubeAutoplayRetries = 0;
         this.coubAutoplayRetries = 0;
         this.maxAutoplayRetries = 3;
-        this.defaultCoubTimer = 30;
-
-        // Lightbox state
-        this.lightboxOpen = false;
-        this.lightboxOverlay = document.getElementById('lightboxOverlay');
-        this.lightboxContent = document.getElementById('lightboxContent');
-        this.lightboxClose = document.getElementById('lightboxClose');
-
+        this.defaultShortVideoTimer = 30; // Default 30 seconds for short video platforms (Coub, TikTok)
+        
         // Initialize YouTube API
         this.initYouTubeAPI();
-
-        // Initialize lightbox event listeners
-        this.initLightboxListeners();
+        
+        // Listen for fullscreen changes
+        this.initFullscreenListeners();
     }
 
     /**
      * Initialize YouTube IFrame API
      */
     initYouTubeAPI() {
+        // Check if API is already loaded
         if (window.YT && window.YT.Player) {
             this.youtubeReady = true;
             return;
         }
 
+        // Wait for API to load
         window.onYouTubeIframeAPIReady = () => {
             this.youtubeReady = true;
             console.log('YouTube IFrame API ready');
@@ -48,113 +50,38 @@ class VideoPlayer {
     }
 
     /**
-     * Initialize lightbox event listeners
+     * Initialize fullscreen event listeners
      */
-    initLightboxListeners() {
-        // Close button
-        if (this.lightboxClose) {
-            this.lightboxClose.addEventListener('click', () => {
-                this.closeLightbox();
-            });
-        }
+    initFullscreenListeners() {
+        const fullscreenEvents = [
+            'fullscreenchange',
+            'webkitfullscreenchange',
+            'mozfullscreenchange',
+            'MSFullscreenChange'
+        ];
 
-        // ESC key closes lightbox
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && this.lightboxOpen) {
-                this.closeLightbox();
-            }
+        fullscreenEvents.forEach(event => {
+            document.addEventListener(event, () => {
+                this.wasFullscreen = this.isFullscreen();
+            });
         });
-
-        // Click on overlay background closes lightbox
-        if (this.lightboxOverlay) {
-            this.lightboxOverlay.addEventListener('click', (e) => {
-                if (e.target === this.lightboxOverlay) {
-                    this.closeLightbox();
-                }
-            });
-        }
     }
 
     /**
-     * Open the lightbox overlay
+     * Check if currently in fullscreen mode
+     * @returns {boolean} - True if in fullscreen
      */
-    openLightbox() {
-        if (this.lightboxOverlay) {
-            this.lightboxOverlay.classList.add('active');
-            this.lightboxOpen = true;
-            document.body.style.overflow = 'hidden';
-        }
+    isFullscreen() {
+        return !!(
+            document.fullscreenElement ||
+            document.webkitFullscreenElement ||
+            document.mozFullScreenElement ||
+            document.msFullscreenElement
+        );
     }
 
     /**
-     * Close the lightbox overlay
-     * Pauses playback and remembers position
-     */
-    closeLightbox() {
-        if (this.lightboxOverlay) {
-            this.lightboxOverlay.classList.remove('active');
-            this.lightboxOpen = false;
-            document.body.style.overflow = '';
-
-            // Pause current video if playing
-            this.pauseCurrentVideo();
-        }
-    }
-
-    /**
-     * Pause the currently playing video
-     */
-    pauseCurrentVideo() {
-        try {
-            if (this.currentPlatform === 'youtube' && this.currentPlayer && this.currentPlayer.pauseVideo) {
-                this.currentPlayer.pauseVideo();
-            } else if (this.currentPlatform === 'vimeo' && this.currentPlayer && this.currentPlayer.pause) {
-                this.currentPlayer.pause();
-            } else if (this.currentPlatform === 'coub' && this.currentPlayer && this.currentPlayer.timeout) {
-                // Pause the coub timer
-                clearTimeout(this.currentPlayer.timeout);
-                this.currentPlayer.timeout = null;
-            }
-        } catch (error) {
-            console.warn('Could not pause video:', error);
-        }
-    }
-
-    /**
-     * Resume the currently paused video in lightbox
-     */
-    resumeInLightbox() {
-        this.openLightbox();
-
-        try {
-            if (this.currentPlatform === 'youtube' && this.currentPlayer && this.currentPlayer.playVideo) {
-                this.currentPlayer.playVideo();
-            } else if (this.currentPlatform === 'vimeo' && this.currentPlayer && this.currentPlayer.play) {
-                this.currentPlayer.play();
-            } else if (this.currentPlatform === 'coub' && this.currentPlayer) {
-                // Restart coub timer with remaining time or default
-                const timerDuration = this.getCoubTimer();
-                this.currentPlayer.timeout = setTimeout(() => {
-                    if (this.onVideoEndCallback) {
-                        this.onVideoEndCallback();
-                    }
-                }, timerDuration * 1000);
-            }
-        } catch (error) {
-            console.warn('Could not resume video:', error);
-        }
-    }
-
-    /**
-     * Check if lightbox is currently open
-     * @returns {boolean}
-     */
-    isLightboxOpen() {
-        return this.lightboxOpen;
-    }
-
-    /**
-     * Get Coub timer setting from localStorage
+     * Get short video timer setting from localStorage (used for Coub and TikTok)
      * @returns {number} - Timer duration in seconds
      */
     getCoubTimer() {
@@ -169,11 +96,11 @@ class VideoPlayer {
         } catch (error) {
             console.warn('Could not access localStorage:', error);
         }
-        return this.defaultCoubTimer;
+        return this.defaultShortVideoTimer;
     }
 
     /**
-     * Set Coub timer setting in localStorage
+     * Set short video timer setting in localStorage
      * @param {number} seconds - Timer duration in seconds
      * @returns {boolean} - Success status
      */
@@ -181,10 +108,11 @@ class VideoPlayer {
         try {
             const value = parseInt(seconds, 10);
             if (isNaN(value) || value < 1 || value > 99999) {
-                console.error('Invalid Coub timer value:', seconds);
+                console.error('Invalid timer value:', seconds);
                 return false;
             }
             localStorage.setItem('coubTimer', value.toString());
+            console.log('Short video timer updated to:', value, 'seconds');
             return true;
         } catch (error) {
             console.error('Could not save to localStorage:', error);
@@ -193,7 +121,40 @@ class VideoPlayer {
     }
 
     /**
+     * Enter fullscreen mode
+     * @param {HTMLElement} element - Element to make fullscreen
+     */
+    enterFullscreen(element) {
+        if (!element) {
+            element = this.container;
+        }
+
+        console.log('Attempting to enter fullscreen mode...');
+
+        try {
+            if (element.requestFullscreen) {
+                element.requestFullscreen().catch(err => {
+                    console.error('Fullscreen request failed:', err);
+                });
+            } else if (element.webkitRequestFullscreen) {
+                element.webkitRequestFullscreen();
+            } else if (element.webkitRequestFullScreen) {
+                element.webkitRequestFullScreen();
+            } else if (element.mozRequestFullScreen) {
+                element.mozRequestFullScreen();
+            } else if (element.msRequestFullscreen) {
+                element.msRequestFullscreen();
+            } else {
+                console.warn('Fullscreen API not supported by this browser');
+            }
+        } catch (error) {
+            console.error('Error entering fullscreen:', error);
+        }
+    }
+
+    /**
      * Parse video URL and detect platform
+     * Supports: YouTube, YouTube Shorts, Vimeo, Coub, TikTok
      * @param {string} url - Video URL
      * @returns {Object|null} - Parsed video info or null if invalid
      */
@@ -204,7 +165,23 @@ class VideoPlayer {
 
         url = url.trim();
 
-        // YouTube patterns
+        // YouTube Shorts patterns (check before standard YouTube)
+        const youtubeShortsPatterns = [
+            /(?:https?:\/\/)?(?:www\.|m\.)?youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})/
+        ];
+
+        for (const pattern of youtubeShortsPatterns) {
+            const match = url.match(pattern);
+            if (match) {
+                return {
+                    platform: 'youtube',
+                    videoId: match[1],
+                    url: url
+                };
+            }
+        }
+
+        // YouTube standard patterns
         const youtubePatterns = [
             /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/,
             /youtube\.com\/watch\?.*v=([a-zA-Z0-9_-]{11})/
@@ -255,11 +232,54 @@ class VideoPlayer {
             }
         }
 
+        // TikTok patterns
+        // Standard: https://www.tiktok.com/@username/video/VIDEO_ID
+        const tiktokStandardPattern = /(?:https?:\/\/)?(?:www\.|m\.)?tiktok\.com\/@[^\/]+\/video\/(\d+)/;
+        const tiktokStandardMatch = url.match(tiktokStandardPattern);
+        if (tiktokStandardMatch) {
+            return {
+                platform: 'tiktok',
+                videoId: tiktokStandardMatch[1],
+                url: url
+            };
+        }
+
+        // TikTok mobile: https://m.tiktok.com/v/VIDEO_ID
+        const tiktokMobilePattern = /(?:https?:\/\/)?m\.tiktok\.com\/v\/(\d+)/;
+        const tiktokMobileMatch = url.match(tiktokMobilePattern);
+        if (tiktokMobileMatch) {
+            return {
+                platform: 'tiktok',
+                videoId: tiktokMobileMatch[1],
+                url: url
+            };
+        }
+
+        // TikTok short links: https://vm.tiktok.com/SHORT_CODE/ or https://www.tiktok.com/t/SHORT_CODE/
+        const tiktokShortPatterns = [
+            /(?:https?:\/\/)?vm\.tiktok\.com\/([A-Za-z0-9]+)\/?/,
+            /(?:https?:\/\/)?(?:www\.)?tiktok\.com\/t\/([A-Za-z0-9]+)\/?/
+        ];
+
+        for (const pattern of tiktokShortPatterns) {
+            const match = url.match(pattern);
+            if (match) {
+                // For short links, we use the short code as videoId
+                // The embed will use the original URL via oEmbed or redirect
+                return {
+                    platform: 'tiktok',
+                    videoId: match[1],
+                    url: url,
+                    isShortLink: true
+                };
+            }
+        }
+
         return null;
     }
 
     /**
-     * Load and play a video in the lightbox
+     * Load and play a video
      * @param {Object} video - Video object with platform and videoId
      * @returns {Promise<boolean>} - Success status
      */
@@ -269,13 +289,14 @@ class VideoPlayer {
             return false;
         }
 
+        // Store fullscreen state before clearing player
+        const shouldReenterFullscreen = this.wasFullscreen;
+        console.log('Loading video, fullscreen state:', shouldReenterFullscreen);
+
         // Clear current player
         this.clearPlayer();
 
         this.currentPlatform = video.platform;
-
-        // Open lightbox
-        this.openLightbox();
 
         try {
             switch (video.platform) {
@@ -288,9 +309,24 @@ class VideoPlayer {
                 case 'coub':
                     await this.loadCoub(video.videoId);
                     break;
+                case 'tiktok':
+                    await this.loadTikTok(video.videoId, video.isShortLink);
+                    break;
                 default:
                     console.error('Unsupported platform:', video.platform);
                     return false;
+            }
+
+            // Re-enter fullscreen if it was active before
+            if (shouldReenterFullscreen) {
+                console.log('Re-entering fullscreen mode after video load...');
+                setTimeout(() => {
+                    if (this.isFullscreen()) {
+                        console.log('Already in fullscreen, skipping re-entry');
+                    } else {
+                        this.enterFullscreen();
+                    }
+                }, 800);
             }
 
             return true;
@@ -301,53 +337,66 @@ class VideoPlayer {
     }
 
     /**
-     * Load YouTube video into lightbox
+     * Load YouTube video
      * @param {string} videoId - YouTube video ID
      */
     async loadYouTube(videoId) {
+        // Wait for API to be ready
         if (!this.youtubeReady) {
             await this.waitForYouTubeAPI();
         }
 
+        // Reset autoplay retry counter
         this.youtubeAutoplayRetries = 0;
 
         return new Promise((resolve, reject) => {
             try {
-                const playerDiv = document.createElement('div');
-                playerDiv.id = 'youtube-player-' + Date.now();
-                this.lightboxContent.innerHTML = '';
-                this.lightboxContent.appendChild(playerDiv);
+                // Create iframe element
+                const iframe = document.createElement('div');
+                iframe.id = 'youtube-player-' + Date.now();
+                this.container.innerHTML = '';
+                this.container.appendChild(iframe);
 
-                this.currentPlayer = new YT.Player(playerDiv.id, {
+                // Create YouTube player
+                this.currentPlayer = new YT.Player(iframe.id, {
                     videoId: videoId,
                     width: '100%',
                     height: '100%',
                     playerVars: {
                         autoplay: 1,
-                        mute: 1,
+                        mute: 1, // Mute to comply with autoplay policies
                         rel: 0,
                         modestbranding: 1
                     },
                     events: {
                         onReady: (event) => {
-                            // Unmute after short delay
+                            console.log('YouTube player ready');
+                            // Unmute after a short delay (user interaction workaround)
                             setTimeout(() => {
                                 try {
                                     event.target.unMute();
                                 } catch (error) {
-                                    console.log('Could not unmute (autoplay policy)');
+                                    console.log('Could not unmute (autoplay policy):', error.message);
                                 }
                             }, 1000);
 
+                            // Implement autoplay detection and retry mechanism
                             this.checkYouTubeAutoplay(event.target);
+
                             resolve();
                         },
                         onStateChange: (event) => {
+                            // YT.PlayerState.ENDED = 0
                             if (event.data === YT.PlayerState.ENDED) {
-                                this.handleVideoEnd();
+                                console.log('YouTube video ended');
+                                if (this.onVideoEndCallback) {
+                                    this.onVideoEndCallback();
+                                }
                             }
+                            // YT.PlayerState.PLAYING = 1
                             if (event.data === YT.PlayerState.PLAYING) {
-                                this.youtubeAutoplayRetries = 0;
+                                console.log('YouTube video is playing');
+                                this.youtubeAutoplayRetries = 0; // Reset retries on successful play
                             }
                         },
                         onError: (event) => {
@@ -371,12 +420,17 @@ class VideoPlayer {
             try {
                 const state = player.getPlayerState();
                 if (state !== YT.PlayerState.PLAYING && state !== YT.PlayerState.BUFFERING) {
+                    console.log('YouTube autoplay failed, attempting to play manually...');
+                    
                     if (this.youtubeAutoplayRetries < this.maxAutoplayRetries) {
                         this.youtubeAutoplayRetries++;
                         player.playVideo();
+                        
                         if (this.youtubeAutoplayRetries < this.maxAutoplayRetries) {
                             this.checkYouTubeAutoplay(player);
                         }
+                    } else {
+                        console.error('YouTube autoplay failed after maximum retries');
                     }
                 }
             } catch (error) {
@@ -386,12 +440,13 @@ class VideoPlayer {
     }
 
     /**
-     * Load Vimeo video into lightbox
+     * Load Vimeo video
      * @param {string} videoId - Vimeo video ID
      */
     async loadVimeo(videoId) {
         return new Promise((resolve, reject) => {
             try {
+                // Create iframe element
                 const iframe = document.createElement('iframe');
                 iframe.src = `https://player.vimeo.com/video/${videoId}?autoplay=1&muted=1`;
                 iframe.width = '100%';
@@ -400,13 +455,15 @@ class VideoPlayer {
                 iframe.allow = 'autoplay; fullscreen; picture-in-picture';
                 iframe.allowFullscreen = true;
 
-                this.lightboxContent.innerHTML = '';
-                this.lightboxContent.appendChild(iframe);
+                this.container.innerHTML = '';
+                this.container.appendChild(iframe);
 
+                // Initialize Vimeo Player API
                 if (window.Vimeo && window.Vimeo.Player) {
                     this.currentPlayer = new Vimeo.Player(iframe);
 
                     this.currentPlayer.on('loaded', () => {
+                        console.log('Vimeo player ready');
                         setTimeout(() => {
                             this.currentPlayer.setMuted(false).catch(() => {
                                 console.log('Could not unmute Vimeo (autoplay policy)');
@@ -416,7 +473,10 @@ class VideoPlayer {
                     });
 
                     this.currentPlayer.on('ended', () => {
-                        this.handleVideoEnd();
+                        console.log('Vimeo video ended');
+                        if (this.onVideoEndCallback) {
+                            this.onVideoEndCallback();
+                        }
                     });
 
                     this.currentPlayer.on('error', (error) => {
@@ -434,14 +494,16 @@ class VideoPlayer {
     }
 
     /**
-     * Load Coub video into lightbox
+     * Load Coub video
      * @param {string} videoId - Coub video ID
      */
     async loadCoub(videoId) {
         return new Promise((resolve) => {
             try {
+                // Reset autoplay retry counter
                 this.coubAutoplayRetries = 0;
 
+                // Create iframe element for Coub
                 const iframe = document.createElement('iframe');
                 iframe.src = `https://coub.com/embed/${videoId}?muted=false&autoplay=true&originalSize=false&startWithHD=true`;
                 iframe.width = '100%';
@@ -450,20 +512,27 @@ class VideoPlayer {
                 iframe.allow = 'autoplay; fullscreen';
                 iframe.allowFullscreen = true;
 
-                this.lightboxContent.innerHTML = '';
-                this.lightboxContent.appendChild(iframe);
+                this.container.innerHTML = '';
+                this.container.appendChild(iframe);
 
+                console.log('Coub video loaded');
+                
+                // Get configurable timer value from localStorage
                 const timerDuration = this.getCoubTimer();
-
-                // Coub autoplay workaround
+                console.log(`Coub timer set to ${timerDuration} seconds`);
+                
+                // Implement autoplay workaround
                 this.checkCoubAutoplay(iframe);
-
-                // Set timer for Coub (no reliable end event)
+                
+                // Set a timeout to trigger next video
                 this.currentPlayer = {
                     type: 'coub',
                     iframe: iframe,
                     timeout: setTimeout(() => {
-                        this.handleVideoEnd();
+                        console.log(`Coub video timeout after ${timerDuration} seconds (assumed ended)`);
+                        if (this.onVideoEndCallback) {
+                            this.onVideoEndCallback();
+                        }
                     }, timerDuration * 1000)
                 };
 
@@ -476,29 +545,84 @@ class VideoPlayer {
     }
 
     /**
+     * Load TikTok video
+     * Uses TikTok embed iframe: https://www.tiktok.com/embed/v2/VIDEO_ID
+     * @param {string} videoId - TikTok video ID or short code
+     * @param {boolean} isShortLink - Whether this is a short link (vm.tiktok.com or /t/)
+     */
+    async loadTikTok(videoId, isShortLink = false) {
+        return new Promise((resolve) => {
+            try {
+                // Create iframe element for TikTok
+                const iframe = document.createElement('iframe');
+                
+                // For short links, we use the short code directly in embed URL
+                // TikTok embed v2 format: https://www.tiktok.com/embed/v2/VIDEO_ID
+                const embedUrl = `https://www.tiktok.com/embed/v2/${videoId}`;
+                
+                iframe.src = embedUrl;
+                iframe.width = '100%';
+                iframe.height = '100%';
+                iframe.frameBorder = '0';
+                iframe.allow = 'autoplay; fullscreen; encrypted-media';
+                iframe.allowFullscreen = true;
+                iframe.style.borderRadius = '8px';
+
+                this.container.innerHTML = '';
+                this.container.appendChild(iframe);
+
+                console.log('TikTok video loaded:', videoId);
+                
+                // Get configurable timer value (shared with Coub as "Short Video Duration")
+                const timerDuration = this.getCoubTimer();
+                console.log(`TikTok timer set to ${timerDuration} seconds`);
+                
+                // TikTok embeds auto-loop, use timer to advance to next video
+                this.currentPlayer = {
+                    type: 'tiktok',
+                    iframe: iframe,
+                    timeout: setTimeout(() => {
+                        console.log(`TikTok video timeout after ${timerDuration} seconds (advancing to next)`);
+                        if (this.onVideoEndCallback) {
+                            this.onVideoEndCallback();
+                        }
+                    }, timerDuration * 1000)
+                };
+
+                resolve();
+            } catch (error) {
+                console.error('Error loading TikTok:', error);
+                resolve();
+            }
+        });
+    }
+
+    /**
      * Check if Coub video is autoplaying and retry if needed
      * @param {HTMLIFrameElement} iframe - Coub iframe element
      */
     checkCoubAutoplay(iframe) {
         const clickAttempts = [500, 1500, 2500];
-
+        
         clickAttempts.forEach((delay, index) => {
             setTimeout(() => {
                 if (this.coubAutoplayRetries < this.maxAutoplayRetries) {
                     try {
+                        console.log(`Coub autoplay attempt ${index + 1} at ${delay}ms`);
+                        
                         const clickEvent = new MouseEvent('click', {
                             view: window,
                             bubbles: true,
                             cancelable: true
                         });
                         iframe.dispatchEvent(clickEvent);
-
+                        
                         try {
                             iframe.contentWindow.postMessage('play', '*');
                         } catch (crossOriginError) {
-                            // Expected for cross-origin iframes
+                            console.log('Cross-origin postMessage blocked (expected)');
                         }
-
+                        
                         this.coubAutoplayRetries++;
                     } catch (error) {
                         console.warn('Coub autoplay trigger failed:', error.message);
@@ -506,18 +630,6 @@ class VideoPlayer {
                 }
             }, delay);
         });
-    }
-
-    /**
-     * Handle video end with a small delay for smooth transition
-     */
-    handleVideoEnd() {
-        if (this.onVideoEndCallback && this.lightboxOpen) {
-            // 500ms delay for smooth transition between videos
-            setTimeout(() => {
-                this.onVideoEndCallback();
-            }, 500);
-        }
     }
 
     /**
@@ -532,6 +644,7 @@ class VideoPlayer {
                 }
             }, 100);
 
+            // Timeout after 10 seconds
             setTimeout(() => {
                 clearInterval(checkInterval);
                 console.error('YouTube API load timeout');
@@ -552,6 +665,8 @@ class VideoPlayer {
                     this.currentPlayer.destroy();
                 } else if (this.currentPlatform === 'coub' && this.currentPlayer.timeout) {
                     clearTimeout(this.currentPlayer.timeout);
+                } else if (this.currentPlatform === 'tiktok' && this.currentPlayer.timeout) {
+                    clearTimeout(this.currentPlayer.timeout);
                 }
             } catch (error) {
                 console.error('Error destroying player:', error);
@@ -560,11 +675,6 @@ class VideoPlayer {
         }
 
         this.currentPlatform = null;
-
-        // Clear lightbox content
-        if (this.lightboxContent) {
-            this.lightboxContent.innerHTML = '';
-        }
     }
 
     /**
@@ -576,14 +686,18 @@ class VideoPlayer {
     }
 
     /**
-     * Show placeholder in the video container (not lightbox)
-     * This is handled by the app.js via play button states
+     * Show placeholder
      */
     showPlaceholder() {
         this.clearPlayer();
-        if (this.lightboxOpen) {
-            this.closeLightbox();
-        }
+        this.container.innerHTML = `
+            <div class="placeholder">
+                <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                </svg>
+                <p>Add videos to your playlist to start playing</p>
+            </div>
+        `;
     }
 
     /**
@@ -593,14 +707,7 @@ class VideoPlayer {
     getCurrentPlatform() {
         return this.currentPlatform;
     }
-
-    /**
-     * Check if a video is currently loaded
-     * @returns {boolean}
-     */
-    hasVideo() {
-        return this.currentPlayer !== null;
-    }
 }
 
+// Export the VideoPlayer class
 export default VideoPlayer;
