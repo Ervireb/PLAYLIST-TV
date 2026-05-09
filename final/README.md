@@ -1,110 +1,113 @@
 # Multi-Platform Video Playlist Player
 
-A modern, responsive web application for creating and playing video playlists from multiple platforms.
-
-## Supported Platforms
-
-- **YouTube** - Standard videos and YouTube Shorts
-- **Vimeo** - Standard Vimeo videos
-- **Coub** - Short looping videos
-- **TikTok** - TikTok videos (standard, mobile, and short links)
+A modern, lightweight web application for creating and playing video playlists from YouTube, Vimeo, and Coub. Features a lightbox video player, shuffle mode, theme switching, and responsive design.
 
 ## Features
 
 ### Core Playback
-- Sequential video playback across all supported platforms
-- Click-to-play from any position in the playlist
-- Lightbox/fullscreen video player
-- Auto-advance to next video when current ends
-- Loop mode (enabled by default)
-- Shuffle mode with Fisher-Yates algorithm
+- **Lightbox Video Player**: Videos play in a full-screen overlay with dark semi-transparent background
+- **Auto-advance**: Automatically transitions to the next video when the current one ends (500ms delay for smooth operation)
+- **Click-to-play**: Click any playlist item to jump to that video in the lightbox
+- **Video Container Play Button**: Animated play button that opens the lightbox when clicked
+- **Resume Playback**: Close the lightbox to pause; click the video container to resume from where you left off
 
-### Import & Export
-- **File Import**: Import playlists from CSV or TXT files
-  - Supports comma and semicolon delimiters in CSV
-  - Skips comments (lines starting with #) and empty lines
-  - Shows validation summary before importing
-  - Options: Add to Queue or Replace Queue
-- **YouTube Playlist Import**: Paste a YouTube playlist URL to import all videos
-- **Export**: Export current playlist as a dated .txt file (`playlist_export_YYYY-MM-DD.txt`)
+### Playlist Management
+- **Add Videos**: Paste YouTube, Vimeo, or Coub URLs to add to the playlist
+- **File Import**: Import playlists from CSV or TXT files (supports comma and semicolon delimiters)
+- **Remove Videos**: Click the X button on any playlist item to remove it
+- **Clear Playlist**: Clear all videos with the Clear button next to the playlist header
+- **Duplicate Detection**: Prevents adding the same URL twice
 
-### TikTok Support
-- Supports multiple TikTok URL formats:
-  - `https://www.tiktok.com/@username/video/VIDEO_ID`
-  - `https://tiktok.com/@user/video/VIDEO_ID`
-  - `https://m.tiktok.com/v/VIDEO_ID`
-  - `https://vm.tiktok.com/SHORT_CODE/`
-  - `https://www.tiktok.com/t/SHORT_CODE/`
-- Embedded via TikTok's embed v2 iframe
-- Uses configurable Short Video Duration timer for auto-advance
+### Playback Modes
+- **Loop Mode**: Toggle to restart the playlist from the beginning after the last video
+- **Shuffle Mode**: Toggle to play videos in a randomized order (Fisher-Yates algorithm)
+  - Shuffled order persists until toggled off or playlist is modified
+  - Display order in the playlist UI remains unchanged
+  - Currently playing video is highlighted regardless of shuffle state
+
+### Theme System
+- **Light Theme** (default): Clean, bright interface with soft blue/purple accents
+- **Dark Theme**: Deep gray/navy interface with muted accent colors and subtle glow effects
+- **Persistent**: Theme preference saved to localStorage
+- **System Detection**: Automatically detects system dark mode preference on first visit
+- **Toggle**: Click the moon/sun icon in the header to switch themes
 
 ### Settings
-- **Short Video Duration**: Configurable timer (1-99999 seconds) for Coub and TikTok videos
-  - Controls how long looping short videos play before advancing
-  - Default: 30 seconds
-  - Persisted in localStorage
+- **Coub Timer**: Configure how long Coub videos play before advancing (default: 30 seconds)
+- **Persistent Settings**: All settings saved to localStorage
 
-### UI/UX
-- **Dark/Light Theme**: Toggle between themes, preference saved in localStorage
-- **Modern Design**: Clean card-based layout with smooth animations
-- **Responsive**: Mobile-first design with proper touch targets (44px minimum)
-- **Toast Notifications**: Non-intrusive feedback messages
-- **Platform Badges**: Color-coded badges for each platform
-  - YouTube: Red (#ff0000)
-  - Vimeo: Blue (#1ab7ea)
-  - Coub: Cyan (#00aced)
-  - TikTok: Pink (#ff0050)
+### Design
+- **Responsive**: Mobile-first design that works on all screen sizes
+- **Modern Aesthetics**: Rounded corners, smooth transitions, card-based layout
+- **Animated Play Button**: Colorful rotating gradient circle when playlist has videos
+- **Toggle Switches**: Modern styled toggle switches for Loop and Shuffle
+- **Touch-friendly**: Minimum 44px tap targets for mobile use
+
+## Supported Platforms
+
+| Platform | URL Formats |
+|----------|-------------|
+| YouTube  | `youtube.com/watch?v=ID`, `youtu.be/ID`, `youtube.com/embed/ID` |
+| Vimeo    | `vimeo.com/ID`, `player.vimeo.com/video/ID` |
+| Coub     | `coub.com/view/ID`, `coub.com/embed/ID` |
 
 ## File Structure
 
 ```
 final/
-├── index_fixed_fixed.html    # Main HTML file
+├── index.html          # Main HTML structure with lightbox overlay
 ├── css/
-│   └── styles.css            # Complete stylesheet (dark/light themes)
+│   └── styles.css      # Complete styles with theme system and responsive design
 ├── js/
-│   ├── app.js                # Main application controller
-│   ├── playlist.js           # Playlist management module
-│   └── video-player.js       # Video player & platform detection
-├── playlist_proxy.py         # Python proxy for YouTube playlist fetching
-├── test_tiktok_urls.txt      # Test file with TikTok URL formats
-├── test_videos.txt           # Test file with video URLs
-├── test_videos.csv           # Test CSV file
-├── test_mixed_urls.txt       # Mixed platform test URLs
-└── README.md                 # This file
+│   ├── app.js          # Main application controller
+│   ├── playlist.js     # Playlist management with shuffle support
+│   └── video-player.js # Video player with lightbox integration
+├── README.md           # This file
+├── test_videos.txt     # Sample test file
+├── test_videos.csv     # Sample test file
+└── ...
 ```
 
 ## Architecture
 
-- **ES6 Modules**: Clean modular architecture with import/export
-- **No External Frontend Dependencies**: Pure vanilla JavaScript, HTML, CSS
-- **Cross-Browser Compatible**: Chrome 90+, Firefox 88+, Safari 14+
-- **Responsive Design**: Mobile-first approach
+The application uses a modular ES6 module architecture:
+
+- **`playlist.js`**: Manages the video queue, loop/shuffle state, and playlist operations
+- **`video-player.js`**: Handles video loading, platform API integration, lightbox display, and playback control
+- **`app.js`**: Orchestrates the UI, binds events, manages theme, and coordinates between modules
 
 ## Usage
 
-1. Open `index_fixed_fixed.html` in a modern web browser
-2. Add videos by:
-   - Pasting a URL and clicking "Add"
-   - Importing a .txt or .csv file with URLs
-   - Pasting a YouTube playlist URL
-3. Click on any video in the playlist to start playing
-4. Use Loop and Shuffle toggles to control playback order
-5. Export your playlist using the Export button
+1. Open `index.html` in a modern web browser
+2. Paste a video URL into the input field and click "Add" (or press Enter)
+3. Alternatively, import a file with video URLs using the "Import" button
+4. Click the video container (play button) to start playback in the lightbox
+5. Click any playlist item to jump to that video
+6. Use Loop and Shuffle toggles to control playback order
+7. Press ESC or click the X button to close the lightbox (pauses playback)
+8. Click the video container again to resume playback
+
+## Keyboard Shortcuts
+
+| Key | Action |
+|-----|--------|
+| ESC | Close lightbox (pause playback) |
+| Enter | Add URL from input field |
+
+## Browser Support
+
+- Chrome 90+
+- Firefox 88+
+- Safari 14+
+- Edge 90+
 
 ## Technical Notes
 
-- YouTube IFrame API is loaded for YouTube video control
-- Vimeo Player API is loaded for Vimeo video events
-- Coub and TikTok use iframe embeds with configurable timers
-- The `playlist_proxy.py` can be used as a backend proxy for YouTube playlist fetching
-- All user preferences (theme, timer) are stored in localStorage
-
-## Recent Enhancements
-
-1. **Fix Replace Queue**: Complete clear before adding ensures no old entries remain
-2. **Header Layout**: Settings and theme toggle buttons in column-reverse wrapper
-3. **YouTube Shorts**: Full support for all Shorts URL formats (www, m.youtube.com)
-4. **TikTok Support**: Full platform support with multiple URL format detection
-5. **Export Button**: Export playlist as dated .txt file
-6. **Modern UI/UX**: Comprehensive design polish with animations, dark theme, and responsive layout
+- No external library dependencies (pure HTML/CSS/JS)
+- YouTube IFrame API and Vimeo Player API loaded for platform integration
+- CSS custom properties for theming
+- Fisher-Yates shuffle algorithm for unbiased randomization
+- localStorage for persistent settings and theme preference
+- CSS transitions for smooth lightbox open/close (300ms)
+- 500ms delay between video transitions for smooth operation
+- Autoplay with mute workaround for browser autoplay policies

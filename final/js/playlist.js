@@ -1,23 +1,17 @@
 /**
  * Playlist Management Module
- * Handles adding, removing, and managing video playlist state
- * 
- * Features:
- * - Add/remove videos
- * - Shuffle mode with Fisher-Yates algorithm
- * - Loop mode (default on)
- * - Export playlist as text
- * - Full state reset on clear
+ * Handles adding, removing, managing video playlist state,
+ * loop mode, and shuffle functionality.
  */
 
 class Playlist {
     constructor() {
         this.videos = [];
         this.currentIndex = -1;
-        this.loopMode = true; // Default loop on (fix_5-5_AP)
+        this.loopMode = false;
         this.shuffleMode = false;
         this.shuffledIndices = [];
-        this.shufflePosition = -1;
+        this.shufflePosition = -1; // Position within shuffled order
     }
 
     /**
@@ -45,6 +39,11 @@ class Playlist {
             addedAt: new Date().toISOString()
         });
 
+        // Re-shuffle if shuffle mode is active
+        if (this.shuffleMode) {
+            this.generateShuffledIndices();
+        }
+
         return true;
     }
 
@@ -68,9 +67,13 @@ class Playlist {
 
         this.videos.splice(index, 1);
 
-        // Regenerate shuffle indices if shuffle is active
+        // Re-shuffle if shuffle mode is active
         if (this.shuffleMode) {
             this.generateShuffledIndices();
+            // Reset shuffle position if needed
+            if (this.shufflePosition >= this.shuffledIndices.length) {
+                this.shufflePosition = -1;
+            }
         }
 
         return true;
@@ -78,19 +81,17 @@ class Playlist {
 
     /**
      * Clear all videos from the playlist
-     * Fully resets all state including items array, currentIndex, and shuffledIndices
      */
     clear() {
         this.videos = [];
         this.currentIndex = -1;
         this.shuffledIndices = [];
         this.shufflePosition = -1;
-        // Note: loopMode and shuffleMode are user preferences, not reset on clear
     }
 
     /**
      * Get the next video in the playlist
-     * Supports both sequential and shuffle modes
+     * Respects shuffle mode when enabled
      * @returns {Object|null} - Next video object or null if none available
      */
     getNext() {
@@ -102,7 +103,7 @@ class Playlist {
             return this.getNextShuffled();
         }
 
-        // Sequential mode
+        // Normal (non-shuffle) mode
         if (this.currentIndex === -1) {
             this.currentIndex = 0;
         } else {
@@ -122,12 +123,12 @@ class Playlist {
     }
 
     /**
-     * Get next video in shuffle mode
-     * @returns {Object|null} - Next video object or null
+     * Get the next video in shuffled order
+     * Uses Fisher-Yates shuffled indices array
+     * @returns {Object|null} - Next video object or null if none available
      */
     getNextShuffled() {
-        // Generate shuffle indices if not yet generated or empty
-        if (this.shuffledIndices.length === 0 || this.shuffledIndices.length !== this.videos.length) {
+        if (this.shuffledIndices.length === 0) {
             this.generateShuffledIndices();
         }
 
@@ -135,7 +136,7 @@ class Playlist {
 
         if (this.shufflePosition >= this.shuffledIndices.length) {
             if (this.loopMode) {
-                // Reshuffle and restart
+                // Re-shuffle for next round
                 this.generateShuffledIndices();
                 this.shufflePosition = 0;
             } else {
@@ -144,45 +145,27 @@ class Playlist {
             }
         }
 
-        this.currentIndex = this.shuffledIndices[this.shufflePosition];
-        return this.videos[this.currentIndex];
+        const actualIndex = this.shuffledIndices[this.shufflePosition];
+        this.currentIndex = actualIndex;
+        return this.videos[actualIndex];
     }
 
     /**
      * Generate shuffled indices using Fisher-Yates algorithm
      */
     generateShuffledIndices() {
-        this.shuffledIndices = Array.from({ length: this.videos.length }, (_, i) => i);
-        
+        this.shuffledIndices = [];
+        for (let i = 0; i < this.videos.length; i++) {
+            this.shuffledIndices.push(i);
+        }
+
         // Fisher-Yates shuffle
         for (let i = this.shuffledIndices.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
-            [this.shuffledIndices[i], this.shuffledIndices[j]] = [this.shuffledIndices[j], this.shuffledIndices[i]];
+            const temp = this.shuffledIndices[i];
+            this.shuffledIndices[i] = this.shuffledIndices[j];
+            this.shuffledIndices[j] = temp;
         }
-
-        this.shufflePosition = -1;
-    }
-
-    /**
-     * Set shuffle mode
-     * @param {boolean} enabled - Enable or disable shuffle mode
-     */
-    setShuffleMode(enabled) {
-        this.shuffleMode = enabled;
-        if (enabled) {
-            this.generateShuffledIndices();
-        } else {
-            this.shuffledIndices = [];
-            this.shufflePosition = -1;
-        }
-    }
-
-    /**
-     * Get shuffle mode status
-     * @returns {boolean} - Current shuffle mode status
-     */
-    getShuffleMode() {
-        return this.shuffleMode;
     }
 
     /**
@@ -202,22 +185,6 @@ class Playlist {
      */
     getAll() {
         return [...this.videos];
-    }
-
-    /**
-     * Get all URLs in the playlist as an array
-     * @returns {Array<string>} - Array of URL strings
-     */
-    getURLs() {
-        return this.videos.map(v => v.url);
-    }
-
-    /**
-     * Export playlist as text (one URL per line)
-     * @returns {string} - All URLs joined by newlines
-     */
-    exportAsText() {
-        return this.videos.map(v => v.url).join('\n');
     }
 
     /**
@@ -249,7 +216,9 @@ class Playlist {
      * @returns {boolean} - True if more videos available
      */
     hasNext() {
-        if (this.loopMode) return this.videos.length > 0;
+        if (this.shuffleMode) {
+            return this.shufflePosition < this.shuffledIndices.length - 1;
+        }
         return this.currentIndex < this.videos.length - 1;
     }
 
@@ -278,6 +247,29 @@ class Playlist {
     }
 
     /**
+     * Set shuffle mode
+     * @param {boolean} enabled - Enable or disable shuffle mode
+     */
+    setShuffleMode(enabled) {
+        this.shuffleMode = enabled;
+        if (enabled) {
+            this.generateShuffledIndices();
+            this.shufflePosition = -1;
+        } else {
+            this.shuffledIndices = [];
+            this.shufflePosition = -1;
+        }
+    }
+
+    /**
+     * Get shuffle mode status
+     * @returns {boolean} - Current shuffle mode status
+     */
+    getShuffleMode() {
+        return this.shuffleMode;
+    }
+
+    /**
      * Set current index (for click-to-play functionality)
      * @param {number} index - Index to set as current
      * @returns {boolean} - Success status
@@ -288,6 +280,15 @@ class Playlist {
             return false;
         }
         this.currentIndex = index;
+
+        // Update shuffle position to match
+        if (this.shuffleMode && index >= 0) {
+            const pos = this.shuffledIndices.indexOf(index);
+            if (pos !== -1) {
+                this.shufflePosition = pos;
+            }
+        }
+
         return true;
     }
 

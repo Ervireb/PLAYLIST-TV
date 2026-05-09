@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,8 +9,26 @@
 <body>
     <div class="container">
         <header>
-            <h1>Video Playlist Player</h1>
-            <p class="subtitle">Play videos from YouTube, Vimeo, and Coub in sequence</p>
+            <div class="header-content">
+                <h1>Video Playlist Player</h1>
+                <p class="subtitle">Play videos from YouTube, Vimeo, and Coub in sequence</p>
+            </div>
+            <button id="themeToggle" class="theme-toggle" aria-label="Toggle theme">
+                <svg class="theme-icon sun" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="5"></circle>
+                    <line x1="12" y1="1" x2="12" y2="3"></line>
+                    <line x1="12" y1="21" x2="12" y2="23"></line>
+                    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                    <line x1="1" y1="12" x2="3" y2="12"></line>
+                    <line x1="21" y1="12" x2="23" y2="12"></line>
+                    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                </svg>
+                <svg class="theme-icon moon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                </svg>
+            </button>
         </header>
 
         <main>
@@ -18,25 +36,20 @@
             <section class="video-section">
                 <div class="video-header">
                     <button id="settingsButton" class="settings-button" aria-label="Settings">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <circle cx="12" cy="12" r="3"></circle>
-                            <path d="M12 1v6m0 6v6m0-18a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2 2 2 0 0 1-2-2V3a2 2 0 0 1 2-2zm0 18a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-2a2 2 0 0 1 2-2zM1 12h6m6 0h6M1 12a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2 2 2 0 0 1-2 2H3a2 2 0 0 1-2-2zm18 0a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-2a2 2 0 0 1-2-2z"></path>
+                            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
                         </svg>
                     </button>
                 </div>
                 <div class="video-container" id="videoContainer">
-                    <div class="placeholder">
-                        <svg
-width="80"
-height="80"
-viewBox="0 0 24 24"
-fill="none"
-stroke="currentColor"
-stroke-width="2"
->
-                            <polygon points="5 3 19 12 5 21 5 3"></polygon>
-                        </svg>
-                        <p>Add videos to your playlist to start playing</p>
+                    <div class="play-button-wrapper" id="playButtonWrapper">
+                        <div class="play-button-circle" id="playButtonCircle">
+                            <svg class="play-icon" width="48" height="48" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+                                <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                            </svg>
+                        </div>
+                        <p class="play-button-text" id="playButtonText">Add videos to start playing</p>
                     </div>
                 </div>
                 <div class="video-info" id="videoInfo">
@@ -44,6 +57,19 @@ stroke-width="2"
                     <span class="video-title" id="videoTitle">No video playing</span>
                 </div>
             </section>
+
+            <!-- Lightbox Overlay -->
+            <div class="lightbox-overlay" id="lightboxOverlay">
+                <button class="lightbox-close" id="lightboxClose" aria-label="Close lightbox">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+                <div class="lightbox-content" id="lightboxContent">
+                    <!-- Video iframe will be placed here -->
+                </div>
+            </div>
 
             <!-- Settings Panel -->
             <div id="settingsPanel" class="settings-panel" style="display: none;">
@@ -128,8 +154,8 @@ stroke-width="2"
                 </div>
             </div>
 
-            <!-- Controls Section -->
-            <section class="controls-section">
+            <!-- Input Section -->
+            <section class="input-section">
                 <div class="input-group">
                     <input 
                         type="text" 
@@ -138,35 +164,18 @@ stroke-width="2"
                         aria-label="Video URL input"
                     >
                     <button id="addButton" class="btn btn-primary">
-                        <svg
-width="20"
-height="20"
-viewBox="0 0 24 24"
-fill="none"
-stroke="currentColor"
-stroke-width="2"
->
-                            <line
-x1="12"
-y1="5"
-x2="12"
-y2="19"
-></line>
-                            <line
-x1="5"
-y1="12"
-x2="19"
-y2="12"
-></line>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
                         </svg>
-                        Add to Playlist
+                        Add
                     </button>
                     <label for="fileInput" class="btn btn-secondary file-upload-btn">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
                             <polyline points="13 2 13 9 20 9"></polyline>
                         </svg>
-                        Import File
+                        Import
                     </label>
                     <input 
                         type="file" 
@@ -176,98 +185,32 @@ y2="12"
                         aria-label="Import video URLs from file"
                     >
                 </div>
-                <div class="control-buttons">
-                    <button
-id="playButton"
-class="btn btn-success"
-disabled
->
-                        <svg
-width="20"
-height="20"
-viewBox="0 0 24 24"
-fill="none"
-stroke="currentColor"
-stroke-width="2"
->
-                            <polygon points="5 3 19 12 5 21 5 3"></polygon>
-                        </svg>
-                        Play
-                    </button>
-                    <button
-id="skipButton"
-class="btn btn-secondary"
-disabled
->
-                        <svg
-width="20"
-height="20"
-viewBox="0 0 24 24"
-fill="none"
-stroke="currentColor"
-stroke-width="2"
->
-                            <polygon points="5 4 15 12 5 20 5 4"></polygon>
-                            <line
-x1="19"
-y1="5"
-x2="19"
-y2="19"
-></line>
-                        </svg>
-                        Skip
-                    </button>
-                    <button
-id="clearButton"
-class="btn btn-danger"
-disabled
->
-                        <svg
-width="20"
-height="20"
-viewBox="0 0 24 24"
-fill="none"
-stroke="currentColor"
-stroke-width="2"
->
-                            <polyline points="3 6 5 6 21 6"></polyline>
-                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                        </svg>
-                        Clear Playlist
-                    </button>
-                </div>
-                <div class="loop-control">
-                    <label for="loopToggle" class="loop-label">
-                        <input 
-                            type="checkbox" 
-                            id="loopToggle" 
-                            class="loop-checkbox"
-                            aria-label="Enable continuous loop mode"
-                        >
-                        <span class="loop-text">
-                            <svg
-width="18"
-height="18"
-viewBox="0 0 24 24"
-fill="none"
-stroke="currentColor"
-stroke-width="2"
-class="loop-icon"
->
-                                <polyline points="17 1 21 5 17 9"></polyline>
-                                <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
-                                <polyline points="7 23 3 19 7 15"></polyline>
-                                <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
-                            </svg>
-                            Loop Playlist
-                        </span>
-                    </label>
-                </div>
             </section>
 
             <!-- Playlist Section -->
             <section class="playlist-section">
-                <h2>Playlist <span class="playlist-count" id="playlistCount">(0)</span></h2>
+                <div class="playlist-header">
+                    <h2>Playlist <span class="playlist-count" id="playlistCount">(0)</span></h2>
+                    <div class="playlist-controls">
+                        <label class="toggle-switch" for="loopToggle">
+                            <input type="checkbox" id="loopToggle" aria-label="Enable loop mode">
+                            <span class="toggle-slider"></span>
+                            <span class="toggle-label">Loop</span>
+                        </label>
+                        <label class="toggle-switch" for="shuffleToggle">
+                            <input type="checkbox" id="shuffleToggle" aria-label="Enable shuffle mode">
+                            <span class="toggle-slider"></span>
+                            <span class="toggle-label">Shuffle</span>
+                        </label>
+                        <button id="clearButton" class="btn btn-clear" aria-label="Clear playlist">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="3 6 5 6 21 6"></polyline>
+                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                            </svg>
+                            Clear
+                        </button>
+                    </div>
+                </div>
                 <div class="playlist" id="playlist">
                     <div class="empty-playlist">
                         <p>Your playlist is empty. Add some videos to get started!</p>
@@ -278,7 +221,6 @@ class="loop-icon"
 
         <footer>
             <p>Supported platforms: YouTube, Vimeo, Coub</p>
-            <p class="note">Note: Some browsers may require user interaction before autoplay works</p>
         </footer>
     </div>
 
